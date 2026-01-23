@@ -1,0 +1,48 @@
+{
+	"Name": "RuneScape Hiscores Lite Tracker",
+	"Version": "1.0.0.0",
+	"Author": "rustclar",
+	"Actions": [
+		{
+			"Name": "RS3 Level Tracker",
+			"UUID": "com.rustin.rs3.leveltracker2.0.leveltracker",
+			"Icon": "imgs/actions/leveltracker/icon",
+			"Tooltip": "Shows RuneScape hiscores total level and optional XP.",
+			"PropertyInspectorPath": "ui/rs3-level-tracker.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/leveltracker/key",
+					"TitleAlignment": "middle",
+					"TitleColor": "#000000"
+				}
+			]
+		}
+	],
+	"Category": "RuneScape Hiscores Lite Tracker",
+	"CategoryIcon": "imgs/plugin/category-icon",
+	"CodePath": "bin/plugin.js",
+	"Description": "Shows RuneScape total level and optional XP using the hiscores lite endpoint.",
+	"Icon": "imgs/plugin/marketplace",
+	"SDKVersion": 2,
+	"Software": {
+		"MinimumVersion": "6.5"
+	},
+	"OS": [
+		{
+			"Platform": "mac",
+			"MinimumVersion": "12"
+		},
+		{
+			"Platform": "windows",
+			"MinimumVersion": "10"
+		}
+	],
+	"Nodejs": {
+		"Version": "20",
+		"Debug": "enabled"
+	},
+	"UUID": "com.rustin.rs3.leveltracker2.0"
+}
