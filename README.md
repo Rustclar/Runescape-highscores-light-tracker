@@ -10,11 +10,9 @@ Shows RuneScape total level and optional XP using the hiscores lite endpoint.
 - Save + Test Pull buttons for both actions
 - Caching for group rank lookups (10 minutes)
 
-## Prerequisites
+## Requirements (end users)
 
-- Node.js 20+
 - Stream Deck app 7.2+
-- Stream Deck CLI (`streamdeck`)
 
 ## Install (end users)
 
@@ -23,6 +21,12 @@ Shows RuneScape total level and optional XP using the hiscores lite endpoint.
 3. Open Stream Deck and find **RuneScape Hiscores Lite Tracker** in the Actions list.
 
 ## Development
+
+## Requirements (developers)
+
+- Node.js 20+
+- Stream Deck app 7.2+
+- Stream Deck CLI (`streamdeck`)
 
 ```bash
 npm run dev
