@@ -2,11 +2,25 @@
 
 Shows RuneScape total level and optional XP using the hiscores lite endpoint.
 
+## Features
+
+- RS3/OSRS single-player hiscores: total level + optional XP
+- RS3 Group Ironman group rank (regular/competitive, team sizes 2–5)
+- Sword background with configurable text color + size
+- Save + Test Pull buttons for both actions
+- Caching for group rank lookups (10 minutes)
+
 ## Prerequisites
 
 - Node.js 20+
 - Stream Deck app 7.2+
 - Stream Deck CLI (`streamdeck`)
+
+## Install (end users)
+
+1. Download the latest `.streamDeckPlugin` from the `dist/` folder or GitHub Releases.
+2. Double-click the `.streamDeckPlugin` file to install it.
+3. Open Stream Deck and find **RuneScape Hiscores Lite Tracker** in the Actions list.
 
 ## Development
 
