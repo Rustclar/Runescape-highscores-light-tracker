@@ -26,19 +26,32 @@ type HiscoreMode =
 
 type ActionSettings = {
 	playerName: string;
+	useGimPlayers: boolean;
+	gimPlayerName: string;
 	mode: HiscoreMode;
 	refreshSeconds: number;
 	showXp: boolean;
+	titleBold: boolean;
 	titleColor: string;
 	titleSize: number;
 };
 
+type GimGroupSettings = {
+	groupName: string;
+	mode: "regular" | "competitive";
+	teamSize: 2 | 3 | 4 | 5;
+	game: "rs3" | "osrs";
+};
+
 const DEFAULT_SETTINGS: ActionSettings = {
 	playerName: "",
+	useGimPlayers: false,
+	gimPlayerName: "",
 	mode: "hiscore",
 	refreshSeconds: 300,
 	showXp: false,
-	titleColor: "#000000",
+	titleBold: false,
+	titleColor: "#FFFFFF",
 	titleSize: 22
 };
 
@@ -130,7 +143,10 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 	}
 
 	override async onSendToPlugin(
-		ev: SendToPluginEvent<{ event: string; settings?: ActionSettings }, ActionSettings>
+		ev: SendToPluginEvent<
+			{ event: string; settings?: ActionSettings; gimSettings?: GimGroupSettings },
+			ActionSettings
+		>
 	): Promise<void> {
 		if (!ev.action.isKey()) {
 			return;
@@ -152,6 +168,42 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			this.log("refresh", { context: ev.action.id });
 			await this.refresh(ev.action.id);
 		}
+		if (ev.payload.event === "requestGimMembers" && ev.payload.gimSettings) {
+			this.log("gimMembersRequest", { context: ev.action.id, source: "payload" });
+			const members = await this.fetchGimMembers(ev.payload.gimSettings);
+			if (streamDeck.ui.current) {
+				await streamDeck.ui.current.sendToPropertyInspector({
+					event: "gimMembers",
+					members,
+					groupName: ev.payload.gimSettings.groupName
+				});
+			}
+		}
+		if (ev.payload.event === "requestGimMembers" && !ev.payload.gimSettings) {
+			this.log("gimMembersRequest", { context: ev.action.id, source: "globals" });
+			const globals = (await streamDeck.settings.getGlobalSettings()) as {
+				gimMain?: Partial<GimGroupSettings>;
+			};
+			const main = globals?.gimMain;
+			if (!main?.groupName) {
+				this.log("gimMembersMissingGlobals");
+				return;
+			}
+			const resolved: GimGroupSettings = {
+				groupName: main.groupName ?? "",
+				mode: main.mode ?? "regular",
+				teamSize: (main.teamSize as GimGroupSettings["teamSize"]) ?? 3,
+				game: main.game ?? "rs3"
+			};
+			const members = await this.fetchGimMembers(resolved);
+			if (streamDeck.ui.current) {
+				await streamDeck.ui.current.sendToPropertyInspector({
+					event: "gimMembers",
+					members,
+					groupName: resolved.groupName
+				});
+			}
+		}
 	}
 
 	private normalizeSettings(settings?: Partial<ActionSettings>): ActionSettings {
@@ -169,13 +221,17 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 		const titleColor = allowedColors.has(normalizedColor)
 			? normalizedColor
 			: DEFAULT_SETTINGS.titleColor;
+		const titleBold = Boolean(merged.titleBold);
 		const titleSize = ALLOWED_SIZES.includes(merged.titleSize)
 			? merged.titleSize
 			: DEFAULT_SETTINGS.titleSize;
 		return {
 			...merged,
+			useGimPlayers: Boolean(merged.useGimPlayers),
+			gimPlayerName: typeof merged.gimPlayerName === "string" ? merged.gimPlayerName : "",
 			refreshSeconds,
 			mode,
+			titleBold,
 			titleColor,
 			titleSize
 		};
@@ -237,12 +293,24 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 		const settings = state.settings;
 		if (!settings.playerName.trim()) {
 			this.log("emptyPlayer", { context: contextId });
-			await this.renderKey(contextId, ["SET RSN"], settings.titleColor, settings.titleSize);
+			await this.renderKey(
+				contextId,
+				["SET RSN"],
+				settings.titleColor,
+				settings.titleSize,
+				settings.titleBold
+			);
 			return;
 		}
 
 		state.isFetching = true;
-		await this.renderKey(contextId, ["..."], settings.titleColor, settings.titleSize);
+		await this.renderKey(
+			contextId,
+			["..."],
+			settings.titleColor,
+			settings.titleSize,
+			settings.titleBold
+		);
 
 		try {
 			let result = await this.fetchHiscore(settings);
@@ -259,11 +327,23 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			if (settings.showXp) {
 				lines.push(this.truncateLine(`XP ${this.numberFormatter.format(result.totalXp)}`));
 			}
-			await this.renderKey(contextId, lines, settings.titleColor, settings.titleSize);
+			await this.renderKey(
+				contextId,
+				lines,
+				settings.titleColor,
+				settings.titleSize,
+				settings.titleBold
+			);
 		} catch (error) {
 			this.log("refreshError", { context: contextId, error: String(error) });
 			console.error("Failed to fetch hiscore data", error);
-			await this.renderKey(contextId, ["ERR"], settings.titleColor, settings.titleSize);
+			await this.renderKey(
+				contextId,
+				["ERR"],
+				settings.titleColor,
+				settings.titleSize,
+				settings.titleBold
+			);
 		} finally {
 			state.isFetching = false;
 		}
@@ -273,31 +353,33 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 		contextId: string,
 		lines: string[],
 		titleColor: string,
-		titleSize: number
+		titleSize: number,
+		titleBold: boolean
 	): Promise<void> {
 		const state = this.contexts.get(contextId);
 		if (!state) {
 			return;
 		}
 		if (lines[0] && lines[0].length > 14) {
-			this.startMarquee(contextId, lines, titleColor, titleSize);
+			this.startMarquee(contextId, lines, titleColor, titleSize, titleBold);
 			return;
 		}
 		this.stopMarquee(contextId);
-		await this.renderKeyStatic(contextId, lines, titleColor, titleSize);
+		await this.renderKeyStatic(contextId, lines, titleColor, titleSize, titleBold);
 	}
 
 	private async renderKeyStatic(
 		contextId: string,
 		lines: string[],
 		titleColor: string,
-		titleSize: number
+		titleSize: number,
+		titleBold: boolean
 	): Promise<void> {
 		const state = this.contexts.get(contextId);
 		if (!state) {
 			return;
 		}
-		const image = this.buildSvgImage(lines, titleColor, titleSize);
+		const image = this.buildSvgImage(lines, titleColor, titleSize, titleBold);
 		if (image) {
 			await state.action.setImage(image, { target: 0 });
 			await state.action.setTitle("", { target: 0 });
@@ -310,7 +392,8 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 		contextId: string,
 		lines: string[],
 		titleColor: string,
-		titleSize: number
+		titleSize: number,
+		titleBold: boolean
 	): void {
 		const state = this.contexts.get(contextId);
 		if (!state) {
@@ -331,7 +414,8 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			const head = loop.slice(offset, offset + 14);
 			state.marqueeIndex += 1;
 			const rendered = [head, ...(state.marqueeLines ?? [])];
-			this.renderKeyStatic(contextId, rendered, titleColor, titleSize).catch((error) => {
+			this.renderKeyStatic(contextId, rendered, titleColor, titleSize, titleBold).catch(
+				(error) => {
 				console.error("Marquee render failed", error);
 			});
 		}, 500);
@@ -407,10 +491,177 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 		return `https://secure.runescape.com/m=${mode}/index_lite.ws?player=${encoded}`;
 	}
 
+	private async fetchGimMembers(settings: GimGroupSettings): Promise<string[]> {
+		if (!settings.groupName.trim()) {
+			return [];
+		}
+		try {
+			const urls = [this.buildGimDetailUrl(settings), this.buildGimDetailUrlAlt(settings)];
+			for (const url of urls) {
+				const html = await this.fetchHtml(url);
+				const members = this.parseMemberNames(html, settings.groupName);
+				this.log("gimMembersParse", {
+					url,
+					count: members.length
+				});
+				if (members.length) {
+					return members.slice(0, 50);
+				}
+			}
+			return [];
+		} catch (error) {
+			this.log("gimMembersError", { error: String(error) });
+			return [];
+		}
+	}
+
+	private buildGimDetailUrl(settings: GimGroupSettings): string {
+		const encoded = encodeURIComponent(settings.groupName.trim());
+		if (settings.game === "osrs") {
+			return `https://secure.runescape.com/m=hiscore_oldschool/group-ironman/${settings.mode}/${settings.teamSize}/${encoded}`;
+		}
+		return `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}/${encoded}`;
+	}
+
+	private buildGimDetailUrlAlt(settings: GimGroupSettings): string {
+		const encoded = encodeURIComponent(settings.groupName.trim());
+		const sizeLabel = `${settings.teamSize}-player`;
+		if (settings.game === "osrs") {
+			return `https://secure.runescape.com/m=hiscore_oldschool/group-ironman/${settings.mode}/${sizeLabel}/${encoded}`;
+		}
+		return `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${sizeLabel}/${encoded}`;
+	}
+
+	private async fetchHtml(url: string): Promise<string> {
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 7000);
+		try {
+			const response = await fetch(url, { signal: controller.signal });
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+			return await response.text();
+		} finally {
+			clearTimeout(timeoutId);
+		}
+	}
+
+	private parseMemberNames(html: string, groupName: string): string[] {
+		const entries = new Set<string>();
+		const normalizedGroup = groupName.trim().toLowerCase();
+
+		const addCandidate = (raw: string) => {
+			const name = this.cleanCell(raw);
+			if (!name) return;
+			const lower = name.toLowerCase();
+			if (lower === normalizedGroup) return;
+			if (
+				[
+					"home",
+					"hiscores",
+					"group ironman",
+					"competitive group ironman",
+					"back to table",
+					"terms & conditions",
+					"privacy policy",
+					"cookie policy",
+					"manage cookies",
+					"jagex ltd.",
+					"do not sell or share my personal information"
+				].includes(lower)
+			) {
+				return;
+			}
+			if (name.length < 2) {
+				return;
+			}
+			entries.add(name);
+		};
+
+		const jsonMatch = html.match(/"members"\s*:\s*\[([\s\S]*?)\]/i);
+		if (jsonMatch) {
+			const memberRegex = /"([^"]+)"/g;
+			let memberMatch: RegExpExecArray | null;
+			while ((memberMatch = memberRegex.exec(jsonMatch[1]))) {
+				addCandidate(memberMatch[1]);
+			}
+		}
+
+		const memberSpanRegex =
+			/<span[^>]*class="[^"]*GroupMember-module__[^"]*__memberNameGold[^"]*"[^>]*>([\s\S]*?)<\/span>/gi;
+		let spanMatch: RegExpExecArray | null;
+		while ((spanMatch = memberSpanRegex.exec(html))) {
+			addCandidate(spanMatch[1]);
+		}
+
+		const sectionMatch = html.match(/>Members<\/[^>]+>([\s\S]{0,8000})/i);
+		if (sectionMatch) {
+			const section = sectionMatch[1];
+			const anchorRegex = /<a[^>]*>([\s\S]*?)<\/a>/gi;
+			let anchorMatch: RegExpExecArray | null;
+			while ((anchorMatch = anchorRegex.exec(section))) {
+				addCandidate(anchorMatch[1]);
+			}
+		}
+
+		const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+		let match: RegExpExecArray | null;
+		while ((match = rowRegex.exec(html))) {
+			const row = match[0];
+			const nameMatches = [
+				/data-label="Name"[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/gi,
+				/data-label="Player"[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/gi,
+				/data-label="Members?"[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/gi
+			];
+			nameMatches.forEach((regex) => {
+				let nameMatch: RegExpExecArray | null;
+				while ((nameMatch = regex.exec(row))) {
+					addCandidate(nameMatch[1]);
+				}
+			});
+		}
+
+		const hrefRegex = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+		let hrefMatch: RegExpExecArray | null;
+		while ((hrefMatch = hrefRegex.exec(html))) {
+			const href = hrefMatch[1];
+			const text = hrefMatch[2];
+			if (!/hiscore|hiscores|player=/i.test(href)) {
+				continue;
+			}
+			const playerParam = href.match(/[?&]player=([^&]+)/i);
+			if (playerParam?.[1]) {
+				try {
+					addCandidate(decodeURIComponent(playerParam[1].replace(/\+/g, " ")));
+				} catch {
+					addCandidate(playerParam[1]);
+				}
+				continue;
+			}
+			const pathPlayer = href.match(/\/player\/([^\s/?#]+)/i);
+			if (pathPlayer?.[1]) {
+				try {
+					addCandidate(decodeURIComponent(pathPlayer[1].replace(/\+/g, " ")));
+				} catch {
+					addCandidate(pathPlayer[1]);
+				}
+				continue;
+			}
+			addCandidate(text);
+		}
+
+		return Array.from(entries);
+	}
+
+	private cleanCell(value: string): string {
+		return value.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+	}
+
 	private buildSvgImage(
 		lines: string[],
 		titleColor: string,
-		titleSize: number
+		titleSize: number,
+		titleBold: boolean
 	): string | null {
 		const baseImage = this.getBaseImageData();
 		if (!baseImage) {
@@ -430,7 +681,8 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 				return `<text x="${size / 2}" y="${y}" font-size="${fontSize}">${line}</text>`;
 			})
 			.join("");
-		const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><image href="data:image/png;base64,${baseImage}" x="0" y="0" width="${size}" height="${size}" preserveAspectRatio="xMidYMid slice"/><g font-family="Trebuchet MS, Segoe UI, Arial, sans-serif" font-weight="700" fill="${titleColor}" text-anchor="middle">${textNodes}</g></svg>`;
+		const weight = titleBold ? 700 : 400;
+		const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><image href="data:image/png;base64,${baseImage}" x="0" y="0" width="${size}" height="${size}" preserveAspectRatio="xMidYMid slice"/><g font-family="Trebuchet MS, Segoe UI, Arial, sans-serif" font-weight="${weight}" fill="${titleColor}" text-anchor="middle">${textNodes}</g></svg>`;
 		return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 	}
 

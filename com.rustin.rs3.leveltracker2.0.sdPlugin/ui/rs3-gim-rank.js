@@ -8,7 +8,8 @@
     showRank: true,
     showLevel: false,
     showXp: false,
-    titleColor: "#000000",
+    titleBold: false,
+    titleColor: "#FFFFFF",
     titleSize: 22,
     linkToMain: false
   };
@@ -34,6 +35,7 @@
   let context = "";
   let actionContext = "";
   let actionUUID = "com.rustin.rs3.leveltracker2.0.gimrank";
+  let inputTimer = null;
 
   const groupInput = document.querySelector("#groupName");
   const teamSizeSelect = document.querySelector("#teamSize");
@@ -46,10 +48,10 @@
   const showRankInput = document.querySelector("#showRank");
   const showLevelInput = document.querySelector("#showLevel");
   const showXpInput = document.querySelector("#showXp");
+  const titleBoldInput = document.querySelector("#titleBold");
   const titleColorSelect = document.querySelector("#titleColor");
   const titleSizeSelect = document.querySelector("#titleSize");
   const saveButton = document.querySelector("#saveSettings");
-  const testButton = document.querySelector("#testPull");
 
   const normalizeSettings = (settings = {}) => {
     const merged = { ...DEFAULT_SETTINGS, ...settings };
@@ -63,6 +65,7 @@
     const refreshMinutes = Number.isFinite(merged.refreshMinutes)
       ? Math.max(1, Math.floor(merged.refreshMinutes))
       : DEFAULT_SETTINGS.refreshMinutes;
+    const titleBold = Boolean(merged.titleBold);
     const titleColor = ALLOWED_COLORS.includes(merged.titleColor)
       ? merged.titleColor
       : DEFAULT_SETTINGS.titleColor;
@@ -75,6 +78,7 @@
       mode,
       game,
       refreshMinutes,
+      titleBold,
       titleColor,
       titleSize
     };
@@ -156,6 +160,7 @@
       showRank: Boolean(showRankInput?.checked),
       showLevel: Boolean(showLevelInput?.checked),
       showXp: Boolean(showXpInput?.checked),
+      titleBold: Boolean(titleBoldInput?.checked),
       titleColor: titleColorSelect?.value ?? DEFAULT_SETTINGS.titleColor,
       titleSize: Number.parseInt(titleSizeSelect?.value ?? "", 10)
     });
@@ -184,6 +189,7 @@
     if (showRankInput) showRankInput.checked = settings.showRank;
     if (showLevelInput) showLevelInput.checked = settings.showLevel;
     if (showXpInput) showXpInput.checked = settings.showXp;
+    if (titleBoldInput) titleBoldInput.checked = settings.titleBold;
     if (titleColorSelect) titleColorSelect.value = settings.titleColor;
     if (titleSizeSelect) titleSizeSelect.value = String(settings.titleSize);
   };
@@ -192,7 +198,16 @@
     const settings = readSettingsFromForm();
     applySettingsToForm(settings);
     setSettings(settings);
-    requestSave(settings);
+  };
+
+  const handleFormChangeDebounced = () => {
+    if (inputTimer) {
+      clearTimeout(inputTimer);
+    }
+    inputTimer = setTimeout(() => {
+      inputTimer = null;
+      handleFormChange();
+    }, 600);
   };
 
   const handleMessage = (event) => {
@@ -266,7 +281,7 @@
   window.connectElgatoStreamDeck = connect;
   window.connectElgatoStreamDeckSocket = connect;
 
-  groupInput?.addEventListener("input", handleFormChange);
+  groupInput?.addEventListener("input", handleFormChangeDebounced);
   teamSizeSelect?.addEventListener("change", handleFormChange);
   modeSelect?.addEventListener("change", handleFormChange);
   gameSelect?.addEventListener("change", handleFormChange);
@@ -283,15 +298,16 @@
     }
     handleFormChange();
   });
-  refreshCustomInput?.addEventListener("input", handleFormChange);
+  refreshCustomInput?.addEventListener("input", handleFormChangeDebounced);
   showRankInput?.addEventListener("change", handleFormChange);
   showLevelInput?.addEventListener("change", handleFormChange);
   showXpInput?.addEventListener("change", handleFormChange);
+  titleBoldInput?.addEventListener("change", handleFormChange);
   titleColorSelect?.addEventListener("change", handleFormChange);
   titleSizeSelect?.addEventListener("change", handleFormChange);
-  saveButton?.addEventListener("click", handleFormChange);
-  testButton?.addEventListener("click", () => {
+  saveButton?.addEventListener("click", () => {
+    const settings = readSettingsFromForm();
     handleFormChange();
-    requestTestPull();
+    requestSave(settings);
   });
 })();

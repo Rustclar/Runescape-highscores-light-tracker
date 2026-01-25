@@ -77,7 +77,7 @@
       }
       .actions {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 10px;
         margin-top: 6px;
       }
@@ -129,27 +129,27 @@
           <option value="rs3">RS3</option>
           <option value="osrs">Old School</option>
         </select>
-        <label for="refreshPreset">Refresh interval</label>
-        <select id="refreshPreset">
-          <option value="1">1 minute</option>
-          <option value="5">5 minutes</option>
-          <option value="10">10 minutes</option>
-          <option value="30">30 minutes</option>
-          <option value="60">1 hour</option>
-          <option value="360">6 hours</option>
-          <option value="720">12 hours</option>
-          <option value="1440">24 hours</option>
-          <option value="custom">Custom</option>
-        </select>
-        <input
-          id="refreshCustom"
-          type="number"
-          min="1"
-          step="1"
-          placeholder="Custom minutes"
-        />
-        <div id="refreshNote" class="hint">Custom time is in minutes.</div>
       </div>
+      <label for="refreshPreset">Refresh interval</label>
+      <select id="refreshPreset">
+        <option value="1">1 minute</option>
+        <option value="5">5 minutes</option>
+        <option value="10">10 minutes</option>
+        <option value="30">30 minutes</option>
+        <option value="60">1 hour</option>
+        <option value="360">6 hours</option>
+        <option value="720">12 hours</option>
+        <option value="1440">24 hours</option>
+        <option value="custom">Custom</option>
+      </select>
+      <input
+        id="refreshCustom"
+        type="number"
+        min="1"
+        step="1"
+        placeholder="Custom minutes"
+      />
+      <div id="refreshNote" class="hint">Custom time is in minutes.</div>
       <div class="row">
         <input id="showRank" type="checkbox" />
         <label for="showRank">Show Rank</label>
@@ -186,10 +186,13 @@
         <option value="26">Large+</option>
         <option value="28">Max</option>
       </select>
+      <div class="row">
+        <input id="titleBold" type="checkbox" />
+        <label for="titleBold">Bold text</label>
+      </div>
       <div class="hint">Rank refreshes when the key appears or is pressed.</div>
       <div class="actions">
-        <button id="saveSettings" type="button">Save</button>
-        <button id="testPull" class="test-button" type="button">Refresh</button>
+        <button id="saveSettings" class="test-button" type="button">Refresh</button>
       </div>
     </div>
     <script src="rs3-gim-rank.js"></script>

@@ -26,6 +26,7 @@ type GroupSettings = {
 	showRank: boolean;
 	showLevel: boolean;
 	showXp: boolean;
+	titleBold: boolean;
 	titleColor: string;
 	titleSize: number;
 	linkToMain: boolean;
@@ -40,7 +41,8 @@ const DEFAULT_SETTINGS: GroupSettings = {
 	showRank: true,
 	showLevel: false,
 	showXp: false,
-	titleColor: "#000000",
+	titleBold: false,
+	titleColor: "#FFFFFF",
 	titleSize: 22,
 	linkToMain: false
 };
@@ -224,6 +226,7 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 		const refreshMinutes = Number.isFinite(merged.refreshMinutes)
 			? Math.max(1, Math.floor(merged.refreshMinutes))
 			: DEFAULT_SETTINGS.refreshMinutes;
+		const titleBold = Boolean(merged.titleBold);
 		const normalizedColor =
 			typeof merged.titleColor === "string" ? merged.titleColor.trim() : "";
 		const allowedColors = new Set(ALLOWED_COLORS.map((entry) => entry.value));
@@ -244,6 +247,7 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			showRank: Boolean(merged.showRank),
 			showLevel: Boolean(merged.showLevel),
 			showXp: Boolean(merged.showXp),
+			titleBold,
 			titleColor,
 			titleSize,
 			linkToMain
@@ -306,12 +310,24 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 
 		const settings = await this.resolveSettings(state.settings);
 		if (!settings.groupName) {
-			await this.renderKey(contextId, ["SET GIM"], settings.titleColor, settings.titleSize);
+			await this.renderKey(
+				contextId,
+				["SET GIM"],
+				settings.titleColor,
+				settings.titleSize,
+				settings.titleBold
+			);
 			return;
 		}
 
 		state.isFetching = true;
-		await this.renderKey(contextId, ["..."], settings.titleColor, settings.titleSize);
+		await this.renderKey(
+			contextId,
+			["..."],
+			settings.titleColor,
+			settings.titleSize,
+			settings.titleBold
+		);
 
 		try {
 			const result = await this.getGroupRank(settings, this.neighborOffset);
@@ -332,10 +348,22 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			if (lines.length === 1) {
 				lines.push(this.truncateLine(`RANK ${result.rank}`));
 			}
-			await this.renderKey(contextId, lines, settings.titleColor, settings.titleSize);
+			await this.renderKey(
+				contextId,
+				lines,
+				settings.titleColor,
+				settings.titleSize,
+				settings.titleBold
+			);
 		} catch (error) {
 			streamDeck.logger.error(`GIM rank fetch error: ${String(error)}`);
-			await this.renderKey(contextId, ["ERR"], settings.titleColor, settings.titleSize);
+			await this.renderKey(
+				contextId,
+				["ERR"],
+				settings.titleColor,
+				settings.titleSize,
+				settings.titleBold
+			);
 		} finally {
 			state.isFetching = false;
 		}
@@ -429,6 +457,7 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 					showRank: settings.showRank,
 					showLevel: settings.showLevel,
 					showXp: settings.showXp,
+					titleBold: settings.titleBold,
 					titleColor: settings.titleColor,
 					titleSize: settings.titleSize
 				};
@@ -543,31 +572,33 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 		contextId: string,
 		lines: string[],
 		titleColor: string,
-		titleSize: number
+		titleSize: number,
+		titleBold: boolean
 	): Promise<void> {
 		const state = this.contexts.get(contextId);
 		if (!state) {
 			return;
 		}
 		if (lines[0] && lines[0].length > 14) {
-			this.startMarquee(contextId, lines, titleColor, titleSize);
+			this.startMarquee(contextId, lines, titleColor, titleSize, titleBold);
 			return;
 		}
 		this.stopMarquee(contextId);
-		await this.renderKeyStatic(contextId, lines, titleColor, titleSize);
+		await this.renderKeyStatic(contextId, lines, titleColor, titleSize, titleBold);
 	}
 
 	private async renderKeyStatic(
 		contextId: string,
 		lines: string[],
 		titleColor: string,
-		titleSize: number
+		titleSize: number,
+		titleBold: boolean
 	): Promise<void> {
 		const state = this.contexts.get(contextId);
 		if (!state) {
 			return;
 		}
-		const image = this.buildSvgImage(lines, titleColor, titleSize);
+		const image = this.buildSvgImage(lines, titleColor, titleSize, titleBold);
 		if (image) {
 			await state.action.setImage(image, { target: 0 });
 			await state.action.setTitle("", { target: 0 });
@@ -580,7 +611,8 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 		contextId: string,
 		lines: string[],
 		titleColor: string,
-		titleSize: number
+		titleSize: number,
+		titleBold: boolean
 	): void {
 		const state = this.contexts.get(contextId);
 		if (!state) {
@@ -601,7 +633,8 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			const head = loop.slice(offset, offset + 14);
 			state.marqueeIndex += 1;
 			const rendered = [head, ...(state.marqueeLines ?? [])];
-			this.renderKeyStatic(contextId, rendered, titleColor, titleSize).catch((error) => {
+			this.renderKeyStatic(contextId, rendered, titleColor, titleSize, titleBold).catch(
+				(error) => {
 				streamDeck.logger.error(`GIM marquee render failed: ${String(error)}`);
 			});
 		}, 500);
@@ -610,7 +643,8 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 	private buildSvgImage(
 		lines: string[],
 		titleColor: string,
-		titleSize: number
+		titleSize: number,
+		titleBold: boolean
 	): string | null {
 		const baseImage = this.getBaseImageData();
 		if (!baseImage) {
@@ -630,7 +664,8 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 				return `<text x="${size / 2}" y="${y}" font-size="${fontSize}">${line}</text>`;
 			})
 			.join("");
-		const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><image href="data:image/png;base64,${baseImage}" x="0" y="0" width="${size}" height="${size}" preserveAspectRatio="xMidYMid slice"/><g font-family="Trebuchet MS, Segoe UI, Arial, sans-serif" font-weight="700" fill="${titleColor}" text-anchor="middle">${textNodes}</g></svg>`;
+		const weight = titleBold ? 700 : 400;
+		const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><image href="data:image/png;base64,${baseImage}" x="0" y="0" width="${size}" height="${size}" preserveAspectRatio="xMidYMid slice"/><g font-family="Trebuchet MS, Segoe UI, Arial, sans-serif" font-weight="${weight}" fill="${titleColor}" text-anchor="middle">${textNodes}</g></svg>`;
 		return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 	}
 

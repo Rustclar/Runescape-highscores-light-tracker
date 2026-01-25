@@ -1,10 +1,13 @@
 (() => {
   const DEFAULT_SETTINGS = {
     playerName: "",
+    useGimPlayers: false,
+    gimPlayerName: "",
     mode: "hiscore",
     refreshSeconds: 300,
     showXp: false,
-    titleColor: "#000000",
+    titleBold: false,
+    titleColor: "#FFFFFF",
     titleSize: 22
   };
   const ALLOWED_MODES = [
@@ -37,17 +40,22 @@
   let context = "";
   let actionContext = "";
   let actionUUID = "com.rustin.rs3.leveltracker2.0.leveltracker";
+  let globalGimSettings = null;
+  let gimMembers = [];
+  let inputTimer = null;
 
   const playerInput = document.querySelector("#playerName");
+  const gimPlayerSelect = document.querySelector("#gimPlayerSelect");
+  const useGimPlayersInput = document.querySelector("#useGimPlayers");
   const modeSelect = document.querySelector("#mode");
   const refreshPresetSelect = document.querySelector("#refreshPreset");
   const refreshCustomInput = document.querySelector("#refreshCustom");
   const refreshNote = document.querySelector("#refreshNote");
   const showXpInput = document.querySelector("#showXp");
+  const titleBoldInput = document.querySelector("#titleBold");
   const titleColorSelect = document.querySelector("#titleColor");
   const titleSizeSelect = document.querySelector("#titleSize");
   const saveButton = document.querySelector("#saveSettings");
-  const testButton = document.querySelector("#testPull");
 
   const normalizeSettings = (settings = {}) => {
     const merged = { ...DEFAULT_SETTINGS, ...settings };
@@ -58,10 +66,21 @@
     const titleColor = ALLOWED_COLORS.includes(merged.titleColor)
       ? merged.titleColor
       : DEFAULT_SETTINGS.titleColor;
+    const titleBold = Boolean(merged.titleBold);
     const titleSize = ALLOWED_SIZES.includes(String(merged.titleSize))
       ? Number.parseInt(String(merged.titleSize), 10)
       : DEFAULT_SETTINGS.titleSize;
-    return { ...merged, refreshSeconds, mode, titleColor, titleSize };
+    return {
+      ...merged,
+      useGimPlayers: Boolean(merged.useGimPlayers),
+      gimPlayerName:
+        typeof merged.gimPlayerName === "string" ? merged.gimPlayerName : "",
+      refreshSeconds,
+      mode,
+      titleBold,
+      titleColor,
+      titleSize
+    };
   };
 
   const send = (payload) => {
@@ -89,6 +108,11 @@
     targets.forEach((target) =>
       send({ event: "getSettings", context: target })
     );
+  };
+
+  const requestGlobalSettings = () => {
+    if (!context) return;
+    send({ event: "getGlobalSettings", context });
   };
 
   const requestSave = (settings) => {
@@ -121,9 +145,32 @@
     );
   };
 
+  const requestGimMembers = () => {
+    const targets = [];
+    if (actionContext) targets.push(actionContext);
+    if (context && context !== actionContext) targets.push(context);
+    if (!targets.length) return;
+    targets.forEach((target) =>
+      send({
+        event: "sendToPlugin",
+        action: actionUUID,
+        context: target,
+        payload: {
+          event: "requestGimMembers",
+          gimSettings: globalGimSettings ?? null
+        }
+      })
+    );
+  };
+
   const readSettingsFromForm = () =>
     normalizeSettings({
-      playerName: playerInput?.value ?? "",
+      playerName:
+        useGimPlayersInput?.checked && gimPlayerSelect
+          ? gimPlayerSelect.value ?? ""
+          : playerInput?.value ?? "",
+      useGimPlayers: Boolean(useGimPlayersInput?.checked),
+      gimPlayerName: gimPlayerSelect?.value ?? "",
       mode: modeSelect?.value ?? DEFAULT_SETTINGS.mode,
       refreshSeconds:
         refreshPresetSelect?.value === "custom"
@@ -133,12 +180,18 @@
             )
           : Number.parseInt(refreshPresetSelect?.value ?? "", 10) * 60,
       showXp: Boolean(showXpInput?.checked),
+      titleBold: Boolean(titleBoldInput?.checked),
       titleColor: titleColorSelect?.value ?? DEFAULT_SETTINGS.titleColor,
       titleSize: Number.parseInt(titleSizeSelect?.value ?? "", 10)
     });
 
   const applySettingsToForm = (settings) => {
     if (playerInput) playerInput.value = settings.playerName;
+    if (useGimPlayersInput)
+      useGimPlayersInput.checked = settings.useGimPlayers;
+    if (gimPlayerSelect) {
+      gimPlayerSelect.value = settings.gimPlayerName || settings.playerName;
+    }
     if (modeSelect) modeSelect.value = settings.mode;
     if (refreshPresetSelect) {
       const minutes = Math.max(1, Math.round(settings.refreshSeconds / 60));
@@ -156,15 +209,33 @@
       if (refreshNote) refreshNote.style.display = showCustom ? "block" : "none";
     }
     if (showXpInput) showXpInput.checked = settings.showXp;
+    if (titleBoldInput) titleBoldInput.checked = settings.titleBold;
     if (titleColorSelect) titleColorSelect.value = settings.titleColor;
     if (titleSizeSelect) titleSizeSelect.value = String(settings.titleSize);
+
+    if (useGimPlayersInput?.checked) {
+      if (playerInput) playerInput.style.display = "none";
+      if (gimPlayerSelect) gimPlayerSelect.style.display = "block";
+    } else {
+      if (playerInput) playerInput.style.display = "block";
+      if (gimPlayerSelect) gimPlayerSelect.style.display = "none";
+    }
   };
 
   const handleFormChange = () => {
     const settings = readSettingsFromForm();
     applySettingsToForm(settings);
     setSettings(settings);
-    requestSave(settings);
+  };
+
+  const handleFormChangeDebounced = () => {
+    if (inputTimer) {
+      clearTimeout(inputTimer);
+    }
+    inputTimer = setTimeout(() => {
+      inputTimer = null;
+      handleFormChange();
+    }, 600);
   };
 
   const handleMessage = (event) => {
@@ -175,6 +246,55 @@
       }
       const settings = normalizeSettings(message.payload?.settings);
       applySettingsToForm(settings);
+      if (settings.useGimPlayers && globalGimSettings) {
+        requestGimMembers();
+      }
+      return;
+    }
+    if (message.event === "didReceiveGlobalSettings") {
+      const main = message.payload?.settings?.gimMain;
+      if (main) {
+        globalGimSettings = {
+          groupName: main.groupName ?? "",
+          mode: main.mode ?? "regular",
+          teamSize: main.teamSize ?? 3,
+          game: main.game ?? "rs3"
+        };
+      }
+      if (useGimPlayersInput?.checked) {
+        requestGimMembers();
+      }
+      return;
+    }
+    if (message.event === "sendToPropertyInspector") {
+      const payload = message.payload || {};
+      if (payload.event === "gimMembers") {
+        gimMembers = Array.isArray(payload.members) ? payload.members : [];
+        if (gimPlayerSelect) {
+          gimPlayerSelect.innerHTML = "";
+          if (!gimMembers.length) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No members found";
+            option.disabled = true;
+            option.selected = true;
+            gimPlayerSelect.appendChild(option);
+          } else {
+            gimMembers.forEach((name) => {
+              const option = document.createElement("option");
+              option.value = name;
+              option.textContent = name;
+              gimPlayerSelect.appendChild(option);
+            });
+          }
+          const current = readSettingsFromForm();
+          if (gimMembers.includes(current.gimPlayerName)) {
+            gimPlayerSelect.value = current.gimPlayerName;
+          } else if (gimMembers.includes(current.playerName)) {
+            gimPlayerSelect.value = current.playerName;
+          }
+        }
+      }
     }
   };
 
@@ -200,13 +320,21 @@
     applySettingsToForm(settings);
     if (websocket.readyState === WebSocket.OPEN) {
       requestSettings();
+      requestGlobalSettings();
     }
   };
 
   window.connectElgatoStreamDeck = connect;
   window.connectElgatoStreamDeckSocket = connect;
 
-  playerInput?.addEventListener("input", handleFormChange);
+  playerInput?.addEventListener("input", handleFormChangeDebounced);
+  gimPlayerSelect?.addEventListener("change", handleFormChange);
+  useGimPlayersInput?.addEventListener("change", () => {
+    handleFormChange();
+    if (useGimPlayersInput?.checked) {
+      requestGimMembers();
+    }
+  });
   modeSelect?.addEventListener("change", handleFormChange);
   refreshPresetSelect?.addEventListener("change", () => {
     if (refreshCustomInput && refreshPresetSelect?.value === "custom") {
@@ -221,13 +349,15 @@
     }
     handleFormChange();
   });
-  refreshCustomInput?.addEventListener("input", handleFormChange);
+  refreshCustomInput?.addEventListener("input", handleFormChangeDebounced);
   showXpInput?.addEventListener("change", handleFormChange);
+  titleBoldInput?.addEventListener("change", handleFormChange);
   titleColorSelect?.addEventListener("change", handleFormChange);
   titleSizeSelect?.addEventListener("change", handleFormChange);
-  saveButton?.addEventListener("click", handleFormChange);
-  testButton?.addEventListener("click", () => {
+  saveButton?.addEventListener("click", () => {
     handleFormChange();
+    const settings = readSettingsFromForm();
+    requestSave(settings);
     requestTestPull();
   });
 })();

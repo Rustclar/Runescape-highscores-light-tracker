@@ -9,7 +9,8 @@ Shows RuneScape total level and optional XP using the hiscores lite endpoint.
 - RS3 GIM neighbor actions (above/below the selected group)
 - GIM key press opens the group page in your browser
 - Sword background with configurable text color + size
-- Save + Refresh buttons for both actions
+- Single Refresh button (saves + refreshes)
+- Optional My GIM players dropdown on Level Tracker
 - Caching for group rank lookups (10 minutes)
 - Long names auto-scroll on the key display
 
@@ -51,7 +52,7 @@ Creates a `.streamDeckPlugin` file in `dist`.
 2. Set `Player name`.
 3. Choose the mode from the dropdown (RS3 or OSRS variants).
 4. Adjust refresh interval, show XP, text color, and text size as needed.
-5. Click **Save** and optionally **Test Pull**.
+5. Click **Refresh** to save and update the key.
 
 ## Troubleshooting
 

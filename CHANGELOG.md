@@ -1,10 +1,12 @@
 # Changelog
 
-## 2.2.0
+## 2.4.0
 
-- Added RS3 GIM neighbor actions (above/below the selected group).
-- Shared the GIM action UI across main/above/below variants.
-- Improved GIM settings saves and test pull handling.
+- Replaced Save/Test Pull with a single Refresh button (saves + refreshes).
+- Debounced typing in property inspectors to reduce auto-refresh spam.
+- Added optional GIM player dropdown on Level Tracker (My GIM players).
+- Reordered UI controls (bold below text size).
+- Improved GIM member scraping for group pages.
 
 ## 2.3.0
 
@@ -15,6 +17,12 @@
 - Refresh button now labeled “Refresh”.
 - Long names scroll on key displays.
 - Updated icon artwork.
+
+## 2.2.0
+
+- Added RS3 GIM neighbor actions (above/below the selected group).
+- Shared the GIM action UI across main/above/below variants.
+- Improved GIM settings saves and test pull handling.
 
 ## 2.1.0
 
