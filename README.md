@@ -7,9 +7,11 @@ Shows RuneScape total level and optional XP using the hiscores lite endpoint.
 - RS3/OSRS single-player hiscores: total level + optional XP
 - RS3 Group Ironman group rank (regular/competitive, team sizes 2–5)
 - RS3 GIM neighbor actions (above/below the selected group)
+- GIM key press opens the group page in your browser
 - Sword background with configurable text color + size
-- Save + Test Pull buttons for both actions
+- Save + Refresh buttons for both actions
 - Caching for group rank lookups (10 minutes)
+- Long names auto-scroll on the key display
 
 ## Requirements (end users)
 

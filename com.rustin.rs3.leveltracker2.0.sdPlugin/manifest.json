@@ -1,13 +1,13 @@
 {
 	"Name": "RuneScape Hiscores Lite Tracker",
-	"Version": "2.2.0.0",
+	"Version": "2.3.0.0",
 	"Author": "rustclar",
 	"Actions": [
 		{
-			"Name": "RS3 GIM Group Rank",
+			"Name": "My Group Rank",
 			"UUID": "com.rustin.rs3.leveltracker2.0.gimrank",
 			"Icon": "imgs/actions/leveltracker/icon",
-			"Tooltip": "Shows RS3 Group Ironman group rank.",
+			"Tooltip": "Shows your main Group Ironman rank.",
 			"PropertyInspectorPath": "ui/rs3-gim-rank.html",
 			"Controllers": [
 				"Keypad"
@@ -20,10 +20,10 @@
 			]
 		},
 		{
-			"Name": "RS3 GIM Group Rank (Above)",
-			"UUID": "com.rustin.rs3.leveltracker2.0.gimrank.above",
+			"Name": "My Group Rank (Above)",
+			"UUID": "com.rustin.rs3.leveltracker2.0.gimrank.above.linked",
 			"Icon": "imgs/actions/leveltracker/icon",
-			"Tooltip": "Shows the group ranked above the selected RS3 GIM group.",
+			"Tooltip": "Shows the group ranked above your main RS3 GIM group.",
 			"PropertyInspectorPath": "ui/rs3-gim-rank.html",
 			"Controllers": [
 				"Keypad"
@@ -36,10 +36,10 @@
 			]
 		},
 		{
-			"Name": "RS3 GIM Group Rank (Below)",
-			"UUID": "com.rustin.rs3.leveltracker2.0.gimrank.below",
+			"Name": "My Group Rank (Below)",
+			"UUID": "com.rustin.rs3.leveltracker2.0.gimrank.below.linked",
 			"Icon": "imgs/actions/leveltracker/icon",
-			"Tooltip": "Shows the group ranked below the selected RS3 GIM group.",
+			"Tooltip": "Shows the group ranked below your main RS3 GIM group.",
 			"PropertyInspectorPath": "ui/rs3-gim-rank.html",
 			"Controllers": [
 				"Keypad"
@@ -52,7 +52,23 @@
 			]
 		},
 		{
-			"Name": "RS3 Level Tracker",
+			"Name": "Other GIM Rank",
+			"UUID": "com.rustin.rs3.leveltracker2.0.gimrank.other",
+			"Icon": "imgs/actions/leveltracker/icon",
+			"Tooltip": "Shows another Group Ironman group rank.",
+			"PropertyInspectorPath": "ui/rs3-gim-rank.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/leveltracker/key",
+					"TitleAlignment": "middle"
+				}
+			]
+		},
+		{
+			"Name": "Level Tracker",
 			"UUID": "com.rustin.rs3.leveltracker2.0.leveltracker",
 			"Icon": "imgs/actions/leveltracker/icon",
 			"Tooltip": "Shows RuneScape hiscores total level and optional XP.",

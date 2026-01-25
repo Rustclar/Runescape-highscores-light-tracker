@@ -40,7 +40,9 @@
 
   const playerInput = document.querySelector("#playerName");
   const modeSelect = document.querySelector("#mode");
-  const refreshInput = document.querySelector("#refreshSeconds");
+  const refreshPresetSelect = document.querySelector("#refreshPreset");
+  const refreshCustomInput = document.querySelector("#refreshCustom");
+  const refreshNote = document.querySelector("#refreshNote");
   const showXpInput = document.querySelector("#showXp");
   const titleColorSelect = document.querySelector("#titleColor");
   const titleSizeSelect = document.querySelector("#titleSize");
@@ -114,7 +116,7 @@
         event: "sendToPlugin",
         action: actionUUID,
         context: target,
-        payload: { event: "testPull" }
+        payload: { event: "refresh" }
       })
     );
   };
@@ -123,7 +125,13 @@
     normalizeSettings({
       playerName: playerInput?.value ?? "",
       mode: modeSelect?.value ?? DEFAULT_SETTINGS.mode,
-      refreshSeconds: Number.parseInt(refreshInput?.value ?? "", 10),
+      refreshSeconds:
+        refreshPresetSelect?.value === "custom"
+          ? Math.max(
+              60,
+              Number.parseInt(refreshCustomInput?.value ?? "", 10) * 60
+            )
+          : Number.parseInt(refreshPresetSelect?.value ?? "", 10) * 60,
       showXp: Boolean(showXpInput?.checked),
       titleColor: titleColorSelect?.value ?? DEFAULT_SETTINGS.titleColor,
       titleSize: Number.parseInt(titleSizeSelect?.value ?? "", 10)
@@ -132,7 +140,21 @@
   const applySettingsToForm = (settings) => {
     if (playerInput) playerInput.value = settings.playerName;
     if (modeSelect) modeSelect.value = settings.mode;
-    if (refreshInput) refreshInput.value = String(settings.refreshSeconds);
+    if (refreshPresetSelect) {
+      const minutes = Math.max(1, Math.round(settings.refreshSeconds / 60));
+      const presetValues = ["1", "5", "10", "30", "60", "360", "720", "1440"];
+      refreshPresetSelect.value = presetValues.includes(String(minutes))
+        ? String(minutes)
+        : "custom";
+    }
+    if (refreshCustomInput) {
+      refreshCustomInput.value = String(
+        Math.max(1, Math.round(settings.refreshSeconds / 60))
+      );
+      const showCustom = refreshPresetSelect?.value === "custom";
+      refreshCustomInput.style.display = showCustom ? "block" : "none";
+      if (refreshNote) refreshNote.style.display = showCustom ? "block" : "none";
+    }
     if (showXpInput) showXpInput.checked = settings.showXp;
     if (titleColorSelect) titleColorSelect.value = settings.titleColor;
     if (titleSizeSelect) titleSizeSelect.value = String(settings.titleSize);
@@ -186,7 +208,20 @@
 
   playerInput?.addEventListener("input", handleFormChange);
   modeSelect?.addEventListener("change", handleFormChange);
-  refreshInput?.addEventListener("change", handleFormChange);
+  refreshPresetSelect?.addEventListener("change", () => {
+    if (refreshCustomInput && refreshPresetSelect?.value === "custom") {
+      refreshCustomInput.style.display = "block";
+      if (refreshNote) refreshNote.style.display = "block";
+    } else if (refreshCustomInput) {
+      refreshCustomInput.style.display = "none";
+      if (refreshNote) refreshNote.style.display = "none";
+      if (refreshPresetSelect?.value) {
+        refreshCustomInput.value = refreshPresetSelect.value;
+      }
+    }
+    handleFormChange();
+  });
+  refreshCustomInput?.addEventListener("input", handleFormChange);
   showXpInput?.addEventListener("change", handleFormChange);
   titleColorSelect?.addEventListener("change", handleFormChange);
   titleSizeSelect?.addEventListener("change", handleFormChange);

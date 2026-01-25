@@ -77,6 +77,10 @@ type ContextState = {
 	timerId?: NodeJS.Timeout;
 	isFetching: boolean;
 	action: KeyAction<ActionSettings>;
+	marqueeTimer?: NodeJS.Timeout;
+	marqueeIndex: number;
+	marqueeText?: string;
+	marqueeLines?: string[];
 };
 
 @action({ UUID: "com.rustin.rs3.leveltracker2.0.leveltracker" })
@@ -102,6 +106,7 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 	override onWillDisappear(ev: WillDisappearEvent<ActionSettings>): void {
 		this.log("willDisappear", { context: ev.action.id });
 		this.stopTimer(ev.action.id);
+		this.stopMarquee(ev.action.id);
 		this.contexts.delete(ev.action.id);
 	}
 
@@ -143,6 +148,10 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			this.log("testPull", { context: ev.action.id });
 			await this.refresh(ev.action.id);
 		}
+		if (ev.payload.event === "refresh") {
+			this.log("refresh", { context: ev.action.id });
+			await this.refresh(ev.action.id);
+		}
 	}
 
 	private normalizeSettings(settings?: Partial<ActionSettings>): ActionSettings {
@@ -181,7 +190,8 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			this.contexts.set(action.id, {
 				settings,
 				isFetching: false,
-				action
+				action,
+				marqueeIndex: 0
 			});
 		}
 	}
@@ -204,6 +214,17 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 		if (state?.timerId) {
 			clearInterval(state.timerId);
 			state.timerId = undefined;
+		}
+	}
+
+	private stopMarquee(contextId: string): void {
+		const state = this.contexts.get(contextId);
+		if (state?.marqueeTimer) {
+			clearInterval(state.marqueeTimer);
+			state.marqueeTimer = undefined;
+			state.marqueeText = undefined;
+			state.marqueeLines = undefined;
+			state.marqueeIndex = 0;
 		}
 	}
 
@@ -233,10 +254,10 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			}
 			const lines = [
 				settings.playerName,
-				`TL ${this.numberFormatter.format(result.totalLevel)}`
+				this.truncateLine(`TL ${this.numberFormatter.format(result.totalLevel)}`)
 			];
 			if (settings.showXp) {
-				lines.push(`XP ${this.numberFormatter.format(result.totalXp)}`);
+				lines.push(this.truncateLine(`XP ${this.numberFormatter.format(result.totalXp)}`));
 			}
 			await this.renderKey(contextId, lines, settings.titleColor, settings.titleSize);
 		} catch (error) {
@@ -258,6 +279,24 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 		if (!state) {
 			return;
 		}
+		if (lines[0] && lines[0].length > 14) {
+			this.startMarquee(contextId, lines, titleColor, titleSize);
+			return;
+		}
+		this.stopMarquee(contextId);
+		await this.renderKeyStatic(contextId, lines, titleColor, titleSize);
+	}
+
+	private async renderKeyStatic(
+		contextId: string,
+		lines: string[],
+		titleColor: string,
+		titleSize: number
+	): Promise<void> {
+		const state = this.contexts.get(contextId);
+		if (!state) {
+			return;
+		}
 		const image = this.buildSvgImage(lines, titleColor, titleSize);
 		if (image) {
 			await state.action.setImage(image, { target: 0 });
@@ -265,6 +304,37 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			return;
 		}
 		await state.action.setTitle(lines.join("\n"), { target: 0 });
+	}
+
+	private startMarquee(
+		contextId: string,
+		lines: string[],
+		titleColor: string,
+		titleSize: number
+	): void {
+		const state = this.contexts.get(contextId);
+		if (!state) {
+			return;
+		}
+		const full = lines[0];
+		const padded = `${full}   `;
+		if (state.marqueeText === padded) {
+			return;
+		}
+		this.stopMarquee(contextId);
+		state.marqueeText = padded;
+		state.marqueeLines = lines.slice(1);
+		state.marqueeIndex = 0;
+		const loop = padded + padded;
+		state.marqueeTimer = setInterval(() => {
+			const offset = state.marqueeIndex % padded.length;
+			const head = loop.slice(offset, offset + 14);
+			state.marqueeIndex += 1;
+			const rendered = [head, ...(state.marqueeLines ?? [])];
+			this.renderKeyStatic(contextId, rendered, titleColor, titleSize).catch((error) => {
+				console.error("Marquee render failed", error);
+			});
+		}, 500);
 	}
 
 	private async fetchHiscore(
@@ -393,5 +463,12 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			.replace(/>/g, "&gt;")
 			.replace(/"/g, "&quot;")
 			.replace(/'/g, "&apos;");
+	}
+
+	private truncateLine(value: string, max = 14): string {
+		if (value.length <= max) {
+			return value;
+		}
+		return `${value.slice(0, Math.max(0, max - 1))}…`;
 	}
 }

@@ -6,6 +6,16 @@
 - Shared the GIM action UI across main/above/below variants.
 - Improved GIM settings saves and test pull handling.
 
+## 2.3.0
+
+- Added RS3/OSRS selector for GIM group ranks.
+- Added refresh dropdown with custom minutes input for GIM and Level Tracker.
+- Linked My Group Above/Below buttons to main group settings.
+- Added browser open on My Group/Above/Below key press.
+- Refresh button now labeled “Refresh”.
+- Long names scroll on key displays.
+- Updated icon artwork.
+
 ## 2.1.0
 
 - Added RS3 Group Ironman group rank action.

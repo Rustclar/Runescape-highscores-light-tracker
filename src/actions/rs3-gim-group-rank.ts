@@ -20,26 +20,34 @@ type GroupSettings = {
 	groupName: string;
 	mode: GroupMode;
 	teamSize: TeamSize;
+	game: "rs3" | "osrs";
+	refreshMinutes: number;
+	refreshPreset?: string;
 	showRank: boolean;
 	showLevel: boolean;
 	showXp: boolean;
 	titleColor: string;
 	titleSize: number;
+	linkToMain: boolean;
 };
 
 const DEFAULT_SETTINGS: GroupSettings = {
 	groupName: "",
 	mode: "regular",
 	teamSize: 3,
+	game: "rs3",
+	refreshMinutes: 10,
 	showRank: true,
 	showLevel: false,
 	showXp: false,
 	titleColor: "#000000",
-	titleSize: 22
+	titleSize: 22,
+	linkToMain: false
 };
 
 const ALLOWED_TEAM_SIZES: TeamSize[] = [2, 3, 4, 5];
 const ALLOWED_MODES: GroupMode[] = ["regular", "competitive"];
+const ALLOWED_GAMES = ["rs3", "osrs"] as const;
 const ALLOWED_COLORS = [
 	{ label: "Black", value: "#000000" },
 	{ label: "White", value: "#FFFFFF" },
@@ -76,6 +84,11 @@ type ContextState = {
 	settings: GroupSettings;
 	isFetching: boolean;
 	action: KeyAction<GroupSettings>;
+	timerId?: NodeJS.Timeout;
+	marqueeTimer?: NodeJS.Timeout;
+	marqueeIndex: number;
+	marqueeText?: string;
+	marqueeLines?: string[];
 };
 
 class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
@@ -84,24 +97,49 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 	private readonly cacheTtlMs = 10 * 60 * 1000;
 	private baseImageData?: string;
 	private readonly neighborOffset: number;
+	private readonly defaultLinkToMain: boolean;
+	private readonly isMain: boolean;
+	private globalMainSettings?: GroupSettings;
 
-	constructor(neighborOffset = 0) {
+	constructor(neighborOffset = 0, defaultLinkToMain = false, isMain = false) {
 		super();
 		this.neighborOffset = neighborOffset;
+		this.defaultLinkToMain = defaultLinkToMain;
+		this.isMain = isMain;
+		streamDeck.settings.onDidReceiveGlobalSettings((ev) => {
+			const settings = ev.settings as { gimMain?: Partial<GroupSettings> };
+			if (settings?.gimMain) {
+				this.globalMainSettings = this.normalizeSettings(
+					settings.gimMain,
+					this.defaultLinkToMain
+				);
+				this.refreshLinkedContexts().catch((error) => {
+					streamDeck.logger.error(`GIM global refresh failed: ${String(error)}`);
+				});
+			}
+		});
 	}
 
 	override onWillAppear(ev: WillAppearEvent<GroupSettings>): void {
 		if (!ev.action.isKey()) {
 			return;
 		}
-		const settings = this.normalizeSettings(ev.payload.settings);
+		const settings = this.normalizeSettings(ev.payload.settings, this.defaultLinkToMain);
 		this.setContext(ev.action, settings);
+		this.loadGlobalSettings().catch((error) => {
+			streamDeck.logger.error(`GIM global load failed: ${String(error)}`);
+		});
+		this.updateTimer(ev.action.id).catch((error) => {
+			streamDeck.logger.error(`GIM timer update failed: ${String(error)}`);
+		});
 		this.refresh(ev.action.id).catch((error) => {
 			streamDeck.logger.error(`GIM rank refresh failed: ${String(error)}`);
 		});
 	}
 
 	override onWillDisappear(ev: WillDisappearEvent<GroupSettings>): void {
+		this.stopTimer(ev.action.id);
+		this.stopMarquee(ev.action.id);
 		this.contexts.delete(ev.action.id);
 	}
 
@@ -109,15 +147,37 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 		if (!ev.action.isKey()) {
 			return;
 		}
-		const settings = this.normalizeSettings(ev.payload.settings);
+		const settings = this.normalizeSettings(ev.payload.settings, this.defaultLinkToMain);
 		this.setContext(ev.action, settings);
+		this.persistMainSettings(settings).catch((error) => {
+			streamDeck.logger.error(`GIM global save failed: ${String(error)}`);
+		});
+		this.updateTimer(ev.action.id).catch((error) => {
+			streamDeck.logger.error(`GIM timer update failed: ${String(error)}`);
+		});
 	}
 
 	override onKeyDown(ev: KeyDownEvent<GroupSettings>): void {
 		if (!ev.action.isKey()) {
 			return;
 		}
-		this.refresh(ev.action.id).catch((error) => {
+		(async () => {
+			const state = this.contexts.get(ev.action.id);
+			const settings = state ? await this.resolveSettings(state.settings) : null;
+			if (settings) {
+				if (this.neighborOffset === 0 && settings.groupName) {
+					await streamDeck.system.openUrl(this.buildDetailUrl(settings));
+				} else if (this.neighborOffset !== 0) {
+					const neighbor = await this.getGroupRank(settings, this.neighborOffset);
+					if (neighbor?.name) {
+						await streamDeck.system.openUrl(
+							this.buildDetailUrl({ ...settings, groupName: neighbor.name })
+						);
+					}
+				}
+			}
+			await this.refresh(ev.action.id);
+		})().catch((error) => {
 			streamDeck.logger.error(`GIM rank refresh failed: ${String(error)}`);
 		});
 	}
@@ -129,19 +189,30 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			return;
 		}
 		if (ev.payload.event === "saveSettings" && ev.payload.settings) {
-			const settings = this.normalizeSettings(ev.payload.settings);
+			const settings = this.normalizeSettings(ev.payload.settings, this.defaultLinkToMain);
 			this.setContext(ev.action, settings);
 			await ev.action.setSettings(settings);
+			await this.persistMainSettings(settings);
+			await this.updateTimer(ev.action.id);
 			await this.refresh(ev.action.id);
 			return;
 		}
 
 		if (ev.payload.event === "testPull") {
+			streamDeck.logger.info(`GIM testPull ${ev.action.id}`);
+			await this.refresh(ev.action.id);
+		}
+
+		if (ev.payload.event === "refresh") {
+			streamDeck.logger.info(`GIM refresh ${ev.action.id}`);
 			await this.refresh(ev.action.id);
 		}
 	}
 
-	private normalizeSettings(settings?: Partial<GroupSettings>): GroupSettings {
+	private normalizeSettings(
+		settings?: Partial<GroupSettings>,
+		defaultLinkToMain = false
+	): GroupSettings {
 		const merged: GroupSettings = {
 			...DEFAULT_SETTINGS,
 			...(settings ?? {})
@@ -149,6 +220,10 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 		const groupName = typeof merged.groupName === "string" ? merged.groupName.trim() : "";
 		const teamSize = ALLOWED_TEAM_SIZES.includes(merged.teamSize) ? merged.teamSize : 3;
 		const mode = ALLOWED_MODES.includes(merged.mode) ? merged.mode : "regular";
+		const game = ALLOWED_GAMES.includes(merged.game) ? merged.game : "rs3";
+		const refreshMinutes = Number.isFinite(merged.refreshMinutes)
+			? Math.max(1, Math.floor(merged.refreshMinutes))
+			: DEFAULT_SETTINGS.refreshMinutes;
 		const normalizedColor =
 			typeof merged.titleColor === "string" ? merged.titleColor.trim() : "";
 		const allowedColors = new Set(ALLOWED_COLORS.map((entry) => entry.value));
@@ -158,15 +233,20 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 		const titleSize = ALLOWED_TITLE_SIZES.includes(merged.titleSize)
 			? merged.titleSize
 			: DEFAULT_SETTINGS.titleSize;
+		const linkToMain = defaultLinkToMain ? true : Boolean(merged.linkToMain);
 		return {
 			groupName,
 			teamSize,
 			mode,
+			game,
+			refreshMinutes,
+			refreshPreset: typeof merged.refreshPreset === "string" ? merged.refreshPreset : undefined,
 			showRank: Boolean(merged.showRank),
 			showLevel: Boolean(merged.showLevel),
 			showXp: Boolean(merged.showXp),
 			titleColor,
-			titleSize
+			titleSize,
+			linkToMain
 		};
 	}
 
@@ -179,8 +259,42 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			this.contexts.set(action.id, {
 				settings,
 				isFetching: false,
-				action
+				action,
+				marqueeIndex: 0
 			});
+		}
+	}
+
+	private async updateTimer(contextId: string): Promise<void> {
+		this.stopTimer(contextId);
+		const state = this.contexts.get(contextId);
+		if (!state) {
+			return;
+		}
+		const settings = await this.resolveSettings(state.settings);
+		state.timerId = setInterval(() => {
+			this.refresh(contextId).catch((error) => {
+				streamDeck.logger.error(`GIM refresh failed: ${String(error)}`);
+			});
+		}, settings.refreshMinutes * 60 * 1000);
+	}
+
+	private stopTimer(contextId: string): void {
+		const state = this.contexts.get(contextId);
+		if (state?.timerId) {
+			clearInterval(state.timerId);
+			state.timerId = undefined;
+		}
+	}
+
+	private stopMarquee(contextId: string): void {
+		const state = this.contexts.get(contextId);
+		if (state?.marqueeTimer) {
+			clearInterval(state.marqueeTimer);
+			state.marqueeTimer = undefined;
+			state.marqueeText = undefined;
+			state.marqueeLines = undefined;
+			state.marqueeIndex = 0;
 		}
 	}
 
@@ -190,7 +304,7 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			return;
 		}
 
-		const settings = state.settings;
+		const settings = await this.resolveSettings(state.settings);
 		if (!settings.groupName) {
 			await this.renderKey(contextId, ["SET GIM"], settings.titleColor, settings.titleSize);
 			return;
@@ -207,16 +321,16 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			const titleName = this.neighborOffset === 0 ? settings.groupName : result.name;
 			const lines: string[] = [titleName];
 			if (settings.showRank) {
-				lines.push(`RANK ${result.rank}`);
+				lines.push(this.truncateLine(`RANK ${result.rank}`));
 			}
 			if (settings.showLevel) {
-				lines.push(`TL ${result.level}`);
+				lines.push(this.truncateLine(`TL ${result.level}`));
 			}
 			if (settings.showXp) {
-				lines.push(`XP ${result.xp.toLocaleString("en-US")}`);
+				lines.push(this.truncateLine(`XP ${result.xp.toLocaleString("en-US")}`));
 			}
 			if (lines.length === 1) {
-				lines.push(`RANK ${result.rank}`);
+				lines.push(this.truncateLine(`RANK ${result.rank}`));
 			}
 			await this.renderKey(contextId, lines, settings.titleColor, settings.titleSize);
 		} catch (error) {
@@ -258,7 +372,7 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			}
 		}
 		for (let page = 1; page <= 200; page += 1) {
-			const url = `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}?page=${page}`;
+			const url = this.buildListUrl(settings, page);
 			const html = await this.fetchHtml(url);
 			const entries = this.parseListEntries(html);
 			if (!entries.length) {
@@ -274,13 +388,13 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 				return entries[targetIndex];
 			}
 			if (offset < 0 && page > 1) {
-				const prevUrl = `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}?page=${page - 1}`;
+				const prevUrl = this.buildListUrl(settings, page - 1);
 				const prevHtml = await this.fetchHtml(prevUrl);
 				const prevEntries = this.parseListEntries(prevHtml);
 				return prevEntries.length ? prevEntries[prevEntries.length - 1] : null;
 			}
 			if (offset > 0 && page < 200) {
-				const nextUrl = `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}?page=${page + 1}`;
+				const nextUrl = this.buildListUrl(settings, page + 1);
 				const nextHtml = await this.fetchHtml(nextUrl);
 				const nextEntries = this.parseListEntries(nextHtml);
 				return nextEntries.length ? nextEntries[0] : null;
@@ -293,9 +407,7 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 	private async fetchGroupPageRank(
 		settings: GroupSettings
 	): Promise<GroupRankResultWithName | null> {
-		const url = `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}/${encodeURIComponent(
-			settings.groupName
-		)}`;
+		const url = this.buildDetailUrl(settings);
 		const html = await this.fetchHtml(url);
 		const entries = this.parseListEntries(html);
 		if (!entries.length) {
@@ -304,6 +416,73 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 		const target = settings.groupName.trim().toLowerCase();
 		const found = entries.find((entry) => entry.name.toLowerCase() === target);
 		return found ?? null;
+	}
+
+	private async resolveSettings(settings: GroupSettings): Promise<GroupSettings> {
+		if (this.neighborOffset !== 0) {
+			if (!this.globalMainSettings) {
+				await this.loadGlobalSettings();
+			}
+			if (this.globalMainSettings) {
+				return {
+					...this.globalMainSettings,
+					showRank: settings.showRank,
+					showLevel: settings.showLevel,
+					showXp: settings.showXp,
+					titleColor: settings.titleColor,
+					titleSize: settings.titleSize
+				};
+			}
+		}
+		return settings;
+	}
+
+	private async loadGlobalSettings(): Promise<void> {
+		const globals = (await streamDeck.settings.getGlobalSettings()) as {
+			gimMain?: Partial<GroupSettings>;
+		};
+		if (globals?.gimMain) {
+			this.globalMainSettings = this.normalizeSettings(
+				globals.gimMain,
+				this.defaultLinkToMain
+			);
+		}
+	}
+
+	private async persistMainSettings(settings: GroupSettings): Promise<void> {
+		if (!this.isMain) {
+			return;
+		}
+		await streamDeck.settings.setGlobalSettings({ gimMain: settings });
+	}
+
+	private async refreshLinkedContexts(): Promise<void> {
+		if (this.neighborOffset === 0) {
+			return;
+		}
+		const refreshes = Array.from(this.contexts.keys()).map((contextId) =>
+			this.refresh(contextId)
+		);
+		await Promise.allSettled(refreshes);
+		const timers = Array.from(this.contexts.keys()).map((contextId) =>
+			this.updateTimer(contextId)
+		);
+		await Promise.allSettled(timers);
+	}
+
+	private buildListUrl(settings: GroupSettings, page: number): string {
+		if (settings.game === "osrs") {
+			return `https://secure.runescape.com/m=hiscore_oldschool/group-ironman/${settings.mode}/${settings.teamSize}?page=${page}`;
+		}
+		return `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}?page=${page}`;
+	}
+
+	private buildDetailUrl(settings: GroupSettings): string {
+		const encoded = encodeURIComponent(settings.groupName);
+		if (settings.game === "osrs") {
+			return `https://secure.runescape.com/m=hiscore_oldschool/group-ironman/${settings.mode}/${settings.teamSize}/${encoded}`;
+		}
+		return `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}/${encoded}`;
 	}
 
 	private async fetchHtml(url: string): Promise<string> {
@@ -370,6 +549,24 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 		if (!state) {
 			return;
 		}
+		if (lines[0] && lines[0].length > 14) {
+			this.startMarquee(contextId, lines, titleColor, titleSize);
+			return;
+		}
+		this.stopMarquee(contextId);
+		await this.renderKeyStatic(contextId, lines, titleColor, titleSize);
+	}
+
+	private async renderKeyStatic(
+		contextId: string,
+		lines: string[],
+		titleColor: string,
+		titleSize: number
+	): Promise<void> {
+		const state = this.contexts.get(contextId);
+		if (!state) {
+			return;
+		}
 		const image = this.buildSvgImage(lines, titleColor, titleSize);
 		if (image) {
 			await state.action.setImage(image, { target: 0 });
@@ -377,6 +574,37 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			return;
 		}
 		await state.action.setTitle(lines.join("\n"), { target: 0 });
+	}
+
+	private startMarquee(
+		contextId: string,
+		lines: string[],
+		titleColor: string,
+		titleSize: number
+	): void {
+		const state = this.contexts.get(contextId);
+		if (!state) {
+			return;
+		}
+		const full = lines[0];
+		const padded = `${full}   `;
+		if (state.marqueeText === padded) {
+			return;
+		}
+		this.stopMarquee(contextId);
+		state.marqueeText = padded;
+		state.marqueeLines = lines.slice(1);
+		state.marqueeIndex = 0;
+		const loop = padded + padded;
+		state.marqueeTimer = setInterval(() => {
+			const offset = state.marqueeIndex % padded.length;
+			const head = loop.slice(offset, offset + 14);
+			state.marqueeIndex += 1;
+			const rendered = [head, ...(state.marqueeLines ?? [])];
+			this.renderKeyStatic(contextId, rendered, titleColor, titleSize).catch((error) => {
+				streamDeck.logger.error(`GIM marquee render failed: ${String(error)}`);
+			});
+		}, 500);
 	}
 
 	private buildSvgImage(
@@ -436,25 +664,53 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			.replace(/"/g, "&quot;")
 			.replace(/'/g, "&apos;");
 	}
+
+	private truncateLine(value: string, max = 14): string {
+		if (value.length <= max) {
+			return value;
+		}
+		return `${value.slice(0, Math.max(0, max - 1))}…`;
+	}
 }
 
 @action({ UUID: "com.rustin.rs3.leveltracker2.0.gimrank" })
 export class Rs3GimGroupRank extends Rs3GimGroupRankBase {
 	constructor() {
-		super(0);
+		super(0, false, true);
+	}
+}
+
+@action({ UUID: "com.rustin.rs3.leveltracker2.0.gimrank.above.linked" })
+export class Rs3GimGroupRankAboveLinked extends Rs3GimGroupRankBase {
+	constructor() {
+		super(-1, true, false);
+	}
+}
+
+@action({ UUID: "com.rustin.rs3.leveltracker2.0.gimrank.below.linked" })
+export class Rs3GimGroupRankBelowLinked extends Rs3GimGroupRankBase {
+	constructor() {
+		super(1, true, false);
 	}
 }
 
 @action({ UUID: "com.rustin.rs3.leveltracker2.0.gimrank.above" })
 export class Rs3GimGroupRankAbove extends Rs3GimGroupRankBase {
 	constructor() {
-		super(-1);
+		super(-1, false, false);
 	}
 }
 
 @action({ UUID: "com.rustin.rs3.leveltracker2.0.gimrank.below" })
 export class Rs3GimGroupRankBelow extends Rs3GimGroupRankBase {
 	constructor() {
-		super(1);
+		super(1, false, false);
+	}
+}
+
+@action({ UUID: "com.rustin.rs3.leveltracker2.0.gimrank.other" })
+export class Rs3GimGroupRankOther extends Rs3GimGroupRankBase {
+	constructor() {
+		super(0, false, false);
 	}
 }

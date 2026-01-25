@@ -51,6 +51,9 @@
         margin-bottom: 12px;
         font-size: 14px;
       }
+      #refreshCustom {
+        display: none;
+      }
       .row {
         display: flex;
         align-items: center;
@@ -67,6 +70,10 @@
       .hint {
         font-size: 12px;
         color: #94a3b8;
+      }
+      #refreshNote {
+        display: none;
+        margin: -6px 0 12px;
       }
       .actions {
         display: grid;
@@ -98,24 +105,51 @@
   <body>
     <div class="card">
       <h1>RS3 Group Ironman Rank</h1>
-      <label for="groupName">Group name</label>
-      <input
-        id="groupName"
-        type="text"
-        placeholder="Group name"
-      />
-      <label for="teamSize">Team size</label>
-      <select id="teamSize">
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-      </select>
-      <label for="mode">Mode</label>
-      <select id="mode">
-        <option value="regular">Regular</option>
-        <option value="competitive">Competitive</option>
-      </select>
+      <div class="main-settings">
+        <label for="groupName">Group name</label>
+        <input
+          id="groupName"
+          type="text"
+          placeholder="Group name"
+        />
+        <label for="teamSize">Team size</label>
+        <select id="teamSize">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="regular">Regular</option>
+          <option value="competitive">Competitive</option>
+        </select>
+        <label for="game">Game</label>
+        <select id="game">
+          <option value="rs3">RS3</option>
+          <option value="osrs">Old School</option>
+        </select>
+        <label for="refreshPreset">Refresh interval</label>
+        <select id="refreshPreset">
+          <option value="1">1 minute</option>
+          <option value="5">5 minutes</option>
+          <option value="10">10 minutes</option>
+          <option value="30">30 minutes</option>
+          <option value="60">1 hour</option>
+          <option value="360">6 hours</option>
+          <option value="720">12 hours</option>
+          <option value="1440">24 hours</option>
+          <option value="custom">Custom</option>
+        </select>
+        <input
+          id="refreshCustom"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="Custom minutes"
+        />
+        <div id="refreshNote" class="hint">Custom time is in minutes.</div>
+      </div>
       <div class="row">
         <input id="showRank" type="checkbox" />
         <label for="showRank">Show Rank</label>
@@ -155,7 +189,7 @@
       <div class="hint">Rank refreshes when the key appears or is pressed.</div>
       <div class="actions">
         <button id="saveSettings" type="button">Save</button>
-        <button id="testPull" class="test-button" type="button">Test Pull</button>
+        <button id="testPull" class="test-button" type="button">Refresh</button>
       </div>
     </div>
     <script src="rs3-gim-rank.js"></script>
