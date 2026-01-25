@@ -59,7 +59,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 type CacheEntry = {
 	expiresAt: number;
-	data: GroupRankResult;
+	data: GroupRankResultWithName;
 };
 
 type GroupRankResult = {
@@ -68,18 +68,27 @@ type GroupRankResult = {
 	xp: number;
 };
 
+type GroupRankResultWithName = GroupRankResult & {
+	name: string;
+};
+
 type ContextState = {
 	settings: GroupSettings;
 	isFetching: boolean;
 	action: KeyAction<GroupSettings>;
 };
 
-@action({ UUID: "com.rustin.rs3.leveltracker2.0.gimrank" })
-export class Rs3GimGroupRank extends SingletonAction<GroupSettings> {
+class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 	private readonly contexts = new Map<string, ContextState>();
 	private readonly cache = new Map<string, CacheEntry>();
 	private readonly cacheTtlMs = 10 * 60 * 1000;
 	private baseImageData?: string;
+	private readonly neighborOffset: number;
+
+	constructor(neighborOffset = 0) {
+		super();
+		this.neighborOffset = neighborOffset;
+	}
 
 	override onWillAppear(ev: WillAppearEvent<GroupSettings>): void {
 		if (!ev.action.isKey()) {
@@ -191,11 +200,12 @@ export class Rs3GimGroupRank extends SingletonAction<GroupSettings> {
 		await this.renderKey(contextId, ["..."], settings.titleColor, settings.titleSize);
 
 		try {
-			const result = await this.getGroupRank(settings);
+			const result = await this.getGroupRank(settings, this.neighborOffset);
 			if (!result) {
 				throw new Error("Group rank not found");
 			}
-			const lines: string[] = [settings.groupName];
+			const titleName = this.neighborOffset === 0 ? settings.groupName : result.name;
+			const lines: string[] = [titleName];
 			if (settings.showRank) {
 				lines.push(`RANK ${result.rank}`);
 			}
@@ -217,16 +227,17 @@ export class Rs3GimGroupRank extends SingletonAction<GroupSettings> {
 		}
 	}
 
-	private async getGroupRank(settings: GroupSettings): Promise<GroupRankResult | null> {
-		const key = `${settings.mode}:${settings.teamSize}:${settings.groupName.toLowerCase()}`;
+	private async getGroupRank(
+		settings: GroupSettings,
+		offset: number
+	): Promise<GroupRankResultWithName | null> {
+		const key = `${settings.mode}:${settings.teamSize}:${settings.groupName.toLowerCase()}:${offset}`;
 		const cached = this.cache.get(key);
 		if (cached && cached.expiresAt > Date.now()) {
 			return cached.data;
 		}
 
-		const result =
-			(await this.fetchGroupPage(settings)) ??
-			(await this.searchListPages(settings));
+		const result = await this.findGroupWithNeighbor(settings, offset);
 		if (result) {
 			this.cache.set(key, {
 				data: result,
@@ -236,24 +247,63 @@ export class Rs3GimGroupRank extends SingletonAction<GroupSettings> {
 		return result;
 	}
 
-	private async fetchGroupPage(settings: GroupSettings): Promise<GroupRankResult | null> {
+	private async findGroupWithNeighbor(
+		settings: GroupSettings,
+		offset: number
+	): Promise<GroupRankResultWithName | null> {
+		if (offset === 0) {
+			const direct = await this.fetchGroupPageRank(settings);
+			if (direct) {
+				return direct;
+			}
+		}
+		for (let page = 1; page <= 200; page += 1) {
+			const url = `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}?page=${page}`;
+			const html = await this.fetchHtml(url);
+			const entries = this.parseListEntries(html);
+			if (!entries.length) {
+				continue;
+			}
+			const target = settings.groupName.trim().toLowerCase();
+			const index = entries.findIndex((entry) => entry.name.toLowerCase() === target);
+			if (index < 0) {
+				continue;
+			}
+			const targetIndex = index + offset;
+			if (targetIndex >= 0 && targetIndex < entries.length) {
+				return entries[targetIndex];
+			}
+			if (offset < 0 && page > 1) {
+				const prevUrl = `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}?page=${page - 1}`;
+				const prevHtml = await this.fetchHtml(prevUrl);
+				const prevEntries = this.parseListEntries(prevHtml);
+				return prevEntries.length ? prevEntries[prevEntries.length - 1] : null;
+			}
+			if (offset > 0 && page < 200) {
+				const nextUrl = `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}?page=${page + 1}`;
+				const nextHtml = await this.fetchHtml(nextUrl);
+				const nextEntries = this.parseListEntries(nextHtml);
+				return nextEntries.length ? nextEntries[0] : null;
+			}
+			return null;
+		}
+		return null;
+	}
+
+	private async fetchGroupPageRank(
+		settings: GroupSettings
+	): Promise<GroupRankResultWithName | null> {
 		const url = `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}/${encodeURIComponent(
 			settings.groupName
 		)}`;
 		const html = await this.fetchHtml(url);
-		return this.extractRank(html, settings.groupName);
-	}
-
-	private async searchListPages(settings: GroupSettings): Promise<GroupRankResult | null> {
-		for (let page = 1; page <= 200; page += 1) {
-			const url = `https://rs.runescape.com/hiscores/group-ironman/${settings.mode}/${settings.teamSize}?page=${page}`;
-			const html = await this.fetchHtml(url);
-			const result = this.extractRank(html, settings.groupName);
-			if (result) {
-				return result;
-			}
+		const entries = this.parseListEntries(html);
+		if (!entries.length) {
+			return null;
 		}
-		return null;
+		const target = settings.groupName.trim().toLowerCase();
+		const found = entries.find((entry) => entry.name.toLowerCase() === target);
+		return found ?? null;
 	}
 
 	private async fetchHtml(url: string): Promise<string> {
@@ -270,18 +320,12 @@ export class Rs3GimGroupRank extends SingletonAction<GroupSettings> {
 		}
 	}
 
-	private extractRank(html: string, groupName: string): GroupRankResult | null {
-		if (!groupName.trim()) {
-			return null;
-		}
-		return this.extractRankFromList(html, groupName);
+	private toNumber(value: string): number {
+		return Number.parseInt(this.cleanCell(value).replace(/,/g, ""), 10);
 	}
 
-	private extractRankFromList(html: string, groupName: string): GroupRankResult | null {
-		if (!html.includes("data-label=\"Rank\"") || !html.includes("data-label=\"Name\"")) {
-			return null;
-		}
-		const target = groupName.trim().toLowerCase();
+	private parseListEntries(html: string): GroupRankResultWithName[] {
+		const entries: GroupRankResultWithName[] = [];
 		const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
 		let match: RegExpExecArray | null;
 		while ((match = rowRegex.exec(html))) {
@@ -290,29 +334,22 @@ export class Rs3GimGroupRank extends SingletonAction<GroupSettings> {
 			if (!nameMatch) {
 				continue;
 			}
-			const name = this.cleanCell(nameMatch[1]).toLowerCase();
-			if (name !== target) {
-				continue;
-			}
+			const name = this.cleanCell(nameMatch[1]);
 			const rankCell = row.match(/data-label="Rank"[\s\S]*?<div[^>]*>([\s\S]*?)<\/div>/i);
 			const levelCell = row.match(/data-label="Level[^"]*"[\s\S]*?<div[^>]*>([\s\S]*?)<\/div>/i);
 			const xpCell = row.match(/data-label="XP[^"]*"[\s\S]*?<div[^>]*>([\s\S]*?)<\/div>/i);
 			if (!rankCell || !levelCell || !xpCell) {
-				return null;
+				continue;
 			}
 			const rank = this.toNumber(rankCell[1]);
 			const level = this.toNumber(levelCell[1]);
 			const xp = this.toNumber(xpCell[1]);
 			if (!Number.isFinite(rank) || !Number.isFinite(level) || !Number.isFinite(xp)) {
-				return null;
+				continue;
 			}
-			return { rank, level, xp };
+			entries.push({ name, rank, level, xp });
 		}
-		return null;
-	}
-
-	private toNumber(value: string): number {
-		return Number.parseInt(this.cleanCell(value).replace(/,/g, ""), 10);
+		return entries;
 	}
 
 	private cleanCell(value: string): string {
@@ -398,5 +435,26 @@ export class Rs3GimGroupRank extends SingletonAction<GroupSettings> {
 			.replace(/>/g, "&gt;")
 			.replace(/"/g, "&quot;")
 			.replace(/'/g, "&apos;");
+	}
+}
+
+@action({ UUID: "com.rustin.rs3.leveltracker2.0.gimrank" })
+export class Rs3GimGroupRank extends Rs3GimGroupRankBase {
+	constructor() {
+		super(0);
+	}
+}
+
+@action({ UUID: "com.rustin.rs3.leveltracker2.0.gimrank.above" })
+export class Rs3GimGroupRankAbove extends Rs3GimGroupRankBase {
+	constructor() {
+		super(-1);
+	}
+}
+
+@action({ UUID: "com.rustin.rs3.leveltracker2.0.gimrank.below" })
+export class Rs3GimGroupRankBelow extends Rs3GimGroupRankBase {
+	constructor() {
+		super(1);
 	}
 }

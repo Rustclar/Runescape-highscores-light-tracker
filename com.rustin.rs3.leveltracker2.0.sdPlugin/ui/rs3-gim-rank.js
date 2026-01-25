@@ -77,6 +77,28 @@
     );
   };
 
+  const requestSave = (settings) => {
+    const target = actionContext || context;
+    if (!target) return;
+    send({
+      event: "sendToPlugin",
+      action: actionUUID,
+      context: target,
+      payload: { event: "saveSettings", settings }
+    });
+  };
+
+  const requestTestPull = () => {
+    const target = actionContext || context;
+    if (!target) return;
+    send({
+      event: "sendToPlugin",
+      action: actionUUID,
+      context: target,
+      payload: { event: "testPull" }
+    });
+  };
+
   const requestSettings = () => {
     const targets = [];
     if (actionContext) targets.push(actionContext);
@@ -114,6 +136,7 @@
     const settings = readSettingsFromForm();
     applySettingsToForm(settings);
     setSettings(settings);
+    requestSave(settings);
   };
 
   const handleMessage = (event) => {
@@ -166,11 +189,6 @@
   saveButton?.addEventListener("click", handleFormChange);
   testButton?.addEventListener("click", () => {
     handleFormChange();
-    send({
-      event: "sendToPlugin",
-      action: actionUUID,
-      context: actionContext || context,
-      payload: { event: "testPull" }
-    });
+    requestTestPull();
   });
 })();

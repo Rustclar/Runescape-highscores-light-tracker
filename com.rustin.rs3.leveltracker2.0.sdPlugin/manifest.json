@@ -1,6 +1,6 @@
 {
 	"Name": "RuneScape Hiscores Lite Tracker",
-	"Version": "2.1.0.0",
+	"Version": "2.2.0.0",
 	"Author": "rustclar",
 	"Actions": [
 		{
@@ -8,6 +8,38 @@
 			"UUID": "com.rustin.rs3.leveltracker2.0.gimrank",
 			"Icon": "imgs/actions/leveltracker/icon",
 			"Tooltip": "Shows RS3 Group Ironman group rank.",
+			"PropertyInspectorPath": "ui/rs3-gim-rank.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/leveltracker/key",
+					"TitleAlignment": "middle"
+				}
+			]
+		},
+		{
+			"Name": "RS3 GIM Group Rank (Above)",
+			"UUID": "com.rustin.rs3.leveltracker2.0.gimrank.above",
+			"Icon": "imgs/actions/leveltracker/icon",
+			"Tooltip": "Shows the group ranked above the selected RS3 GIM group.",
+			"PropertyInspectorPath": "ui/rs3-gim-rank.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/leveltracker/key",
+					"TitleAlignment": "middle"
+				}
+			]
+		},
+		{
+			"Name": "RS3 GIM Group Rank (Below)",
+			"UUID": "com.rustin.rs3.leveltracker2.0.gimrank.below",
+			"Icon": "imgs/actions/leveltracker/icon",
+			"Tooltip": "Shows the group ranked below the selected RS3 GIM group.",
 			"PropertyInspectorPath": "ui/rs3-gim-rank.html",
 			"Controllers": [
 				"Keypad"
