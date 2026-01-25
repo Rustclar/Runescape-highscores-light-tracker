@@ -56,3 +56,8 @@ Creates a `.streamDeckPlugin` file in `dist`.
 - Run `npm run validate` to check manifest issues.
 - Run `npm run restart` if the plugin doesn’t update.
 - Ensure Developer Mode is enabled: `streamdeck dev`.
+
+## Support
+
+If you like it, buy me a coffee:
+https://buymeacoffee.com/rustclar
