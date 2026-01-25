@@ -5,8 +5,11 @@
 - Replaced Save/Test Pull with a single Refresh button (saves + refreshes).
 - Debounced typing in property inspectors to reduce auto-refresh spam.
 - Added optional GIM player dropdown on Level Tracker (My GIM players).
+- Selecting a GIM player now saves + refreshes automatically.
+- Default text styling is now white, bold, and Large.
 - Reordered UI controls (bold below text size).
 - Improved GIM member scraping for group pages.
+ - Custom refresh interval now persists correctly on Level Tracker.
 
 ## 2.3.0
 

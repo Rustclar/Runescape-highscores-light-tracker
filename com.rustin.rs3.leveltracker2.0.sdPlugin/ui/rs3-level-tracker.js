@@ -6,9 +6,9 @@
     mode: "hiscore",
     refreshSeconds: 300,
     showXp: false,
-    titleBold: false,
+    titleBold: true,
     titleColor: "#FFFFFF",
-    titleSize: 22
+    titleSize: 24
   };
   const ALLOWED_MODES = [
     "hiscore",
@@ -43,6 +43,7 @@
   let globalGimSettings = null;
   let gimMembers = [];
   let inputTimer = null;
+  let lastCustomMinutes = Math.max(1, Math.round(DEFAULT_SETTINGS.refreshSeconds / 60));
 
   const playerInput = document.querySelector("#playerName");
   const gimPlayerSelect = document.querySelector("#gimPlayerSelect");
@@ -172,13 +173,21 @@
       useGimPlayers: Boolean(useGimPlayersInput?.checked),
       gimPlayerName: gimPlayerSelect?.value ?? "",
       mode: modeSelect?.value ?? DEFAULT_SETTINGS.mode,
-      refreshSeconds:
-        refreshPresetSelect?.value === "custom"
-          ? Math.max(
-              60,
-              Number.parseInt(refreshCustomInput?.value ?? "", 10) * 60
-            )
-          : Number.parseInt(refreshPresetSelect?.value ?? "", 10) * 60,
+      refreshSeconds: (() => {
+        if (refreshPresetSelect?.value === "custom") {
+          const customValue = Number.parseInt(refreshCustomInput?.value ?? "", 10);
+          if (Number.isFinite(customValue) && customValue >= 1) {
+            lastCustomMinutes = customValue;
+          }
+          return lastCustomMinutes * 60;
+        }
+        const presetMinutes = Number.parseInt(refreshPresetSelect?.value ?? "", 10);
+        if (Number.isFinite(presetMinutes) && presetMinutes >= 1) {
+          lastCustomMinutes = presetMinutes;
+          return presetMinutes * 60;
+        }
+        return DEFAULT_SETTINGS.refreshSeconds;
+      })(),
       showXp: Boolean(showXpInput?.checked),
       titleBold: Boolean(titleBoldInput?.checked),
       titleColor: titleColorSelect?.value ?? DEFAULT_SETTINGS.titleColor,
@@ -199,11 +208,12 @@
       refreshPresetSelect.value = presetValues.includes(String(minutes))
         ? String(minutes)
         : "custom";
+      if (refreshPresetSelect.value === "custom") {
+        lastCustomMinutes = minutes;
+      }
     }
     if (refreshCustomInput) {
-      refreshCustomInput.value = String(
-        Math.max(1, Math.round(settings.refreshSeconds / 60))
-      );
+      refreshCustomInput.value = String(lastCustomMinutes);
       const showCustom = refreshPresetSelect?.value === "custom";
       refreshCustomInput.style.display = showCustom ? "block" : "none";
       if (refreshNote) refreshNote.style.display = showCustom ? "block" : "none";
@@ -328,7 +338,12 @@
   window.connectElgatoStreamDeckSocket = connect;
 
   playerInput?.addEventListener("input", handleFormChangeDebounced);
-  gimPlayerSelect?.addEventListener("change", handleFormChange);
+  gimPlayerSelect?.addEventListener("change", () => {
+    handleFormChange();
+    const settings = readSettingsFromForm();
+    requestSave(settings);
+    requestTestPull();
+  });
   useGimPlayersInput?.addEventListener("change", () => {
     handleFormChange();
     if (useGimPlayersInput?.checked) {
@@ -340,6 +355,7 @@
     if (refreshCustomInput && refreshPresetSelect?.value === "custom") {
       refreshCustomInput.style.display = "block";
       if (refreshNote) refreshNote.style.display = "block";
+      refreshCustomInput.value = String(lastCustomMinutes);
     } else if (refreshCustomInput) {
       refreshCustomInput.style.display = "none";
       if (refreshNote) refreshNote.style.display = "none";

@@ -50,9 +50,9 @@ const DEFAULT_SETTINGS: ActionSettings = {
 	mode: "hiscore",
 	refreshSeconds: 300,
 	showXp: false,
-	titleBold: false,
+	titleBold: true,
 	titleColor: "#FFFFFF",
-	titleSize: 22
+	titleSize: 24
 };
 
 const ALLOWED_MODES: HiscoreMode[] = [

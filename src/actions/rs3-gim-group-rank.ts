@@ -41,9 +41,9 @@ const DEFAULT_SETTINGS: GroupSettings = {
 	showRank: true,
 	showLevel: false,
 	showXp: false,
-	titleBold: false,
+	titleBold: true,
 	titleColor: "#FFFFFF",
-	titleSize: 22,
+	titleSize: 24,
 	linkToMain: false
 };
 
