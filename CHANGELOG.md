@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.1
+
+- Added optional total rank display for Level Tracker.
+- Compact XP display (K/M/B) for Level Tracker and GIM.
+- Custom refresh preset now persists correctly on Level Tracker.
+- GIM player dropdown refreshes when opened.
+- Text now wraps or marquees based on size to prevent overflow.
+
 ## 2.4.0
 
 - Replaced Save/Test Pull with a single Refresh button (saves + refreshes).

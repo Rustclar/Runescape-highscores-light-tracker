@@ -30,6 +30,8 @@ type ActionSettings = {
 	gimPlayerName: string;
 	mode: HiscoreMode;
 	refreshSeconds: number;
+	refreshPreset?: string;
+	showRank: boolean;
 	showXp: boolean;
 	titleBold: boolean;
 	titleColor: string;
@@ -49,6 +51,8 @@ const DEFAULT_SETTINGS: ActionSettings = {
 	gimPlayerName: "",
 	mode: "hiscore",
 	refreshSeconds: 300,
+	refreshPreset: "5",
+	showRank: false,
 	showXp: false,
 	titleBold: true,
 	titleColor: "#FFFFFF",
@@ -227,8 +231,11 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			: DEFAULT_SETTINGS.titleSize;
 		return {
 			...merged,
+			showRank: Boolean(merged.showRank),
 			useGimPlayers: Boolean(merged.useGimPlayers),
 			gimPlayerName: typeof merged.gimPlayerName === "string" ? merged.gimPlayerName : "",
+			refreshPreset:
+				typeof merged.refreshPreset === "string" ? merged.refreshPreset : "5",
 			refreshSeconds,
 			mode,
 			titleBold,
@@ -320,12 +327,21 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			if (!result) {
 				throw new Error("No hiscore data");
 			}
-			const lines = [
-				settings.playerName,
-				this.truncateLine(`TL ${this.numberFormatter.format(result.totalLevel)}`)
-			];
+			const maxChars = this.getMaxChars(settings.titleSize);
+			const lines = [settings.playerName];
+			if (settings.showRank) {
+				lines.push(
+					this.truncateLine(
+						`RANK ${this.numberFormatter.format(result.rank)}`,
+						maxChars
+					)
+				);
+			}
+			lines.push(
+				this.truncateLine(`TL ${this.numberFormatter.format(result.totalLevel)}`, maxChars)
+			);
 			if (settings.showXp) {
-				lines.push(this.truncateLine(`XP ${this.numberFormatter.format(result.totalXp)}`));
+				lines.push(this.truncateLine(`XP ${this.formatCompact(result.totalXp)}`, maxChars));
 			}
 			await this.renderKey(
 				contextId,
@@ -360,7 +376,14 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 		if (!state) {
 			return;
 		}
-		if (lines[0] && lines[0].length > 14) {
+		const maxChars = this.getMaxChars(titleSize);
+		const wrapped = this.wrapFirstLine(lines, maxChars);
+		if (wrapped) {
+			this.stopMarquee(contextId);
+			await this.renderKeyStatic(contextId, wrapped, titleColor, titleSize, titleBold);
+			return;
+		}
+		if (lines[0] && lines[0].length > maxChars) {
 			this.startMarquee(contextId, lines, titleColor, titleSize, titleBold);
 			return;
 		}
@@ -423,7 +446,7 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 
 	private async fetchHiscore(
 		settings: ActionSettings
-	): Promise<{ totalLevel: number; totalXp: number } | null> {
+	): Promise<{ rank: number; totalLevel: number; totalXp: number } | null> {
 		const url = this.buildUrl(settings.mode, settings.playerName);
 		this.log("fetch", { url });
 		const controller = new AbortController();
@@ -442,12 +465,13 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			if (parts.length < 3) {
 				throw new Error("Invalid hiscore response");
 			}
+			const rank = Number.parseInt(parts[0], 10);
 			const totalLevel = Number.parseInt(parts[1], 10);
 			const totalXp = Number.parseInt(parts[2], 10);
-			if (!Number.isFinite(totalLevel) || !Number.isFinite(totalXp)) {
+			if (!Number.isFinite(rank) || !Number.isFinite(totalLevel) || !Number.isFinite(totalXp)) {
 				throw new Error("Invalid hiscore values");
 			}
-			return { totalLevel, totalXp };
+			return { rank, totalLevel, totalXp };
 		} catch (error) {
 			this.log("fetchError", { error: String(error) });
 			console.warn("Hiscore fetch failed", error);
@@ -722,5 +746,58 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 			return value;
 		}
 		return `${value.slice(0, Math.max(0, max - 1))}…`;
+	}
+
+	private getMaxChars(titleSize: number): number {
+		if (titleSize >= 28) return 9;
+		if (titleSize >= 26) return 10;
+		if (titleSize >= 24) return 11;
+		if (titleSize >= 22) return 12;
+		return 14;
+	}
+
+	private formatCompact(value: number): string {
+		if (!Number.isFinite(value)) {
+			return String(value);
+		}
+		const abs = Math.abs(value);
+		const suffix = abs >= 1_000_000_000 ? "B" : abs >= 1_000_000 ? "M" : abs >= 1_000 ? "K" : "";
+		const divisor =
+			suffix === "B" ? 1_000_000_000 : suffix === "M" ? 1_000_000 : suffix === "K" ? 1_000 : 1;
+		const scaled = value / divisor;
+		if (!suffix) {
+			return this.numberFormatter.format(value);
+		}
+		const rounded = scaled >= 100 ? Math.round(scaled) : Math.round(scaled * 10) / 10;
+		const text = rounded % 1 === 0 ? String(Math.trunc(rounded)) : String(rounded);
+		return `${text}${suffix}`;
+	}
+
+	private wrapFirstLine(lines: string[], max = 14): string[] | null {
+		const [first, ...rest] = lines;
+		if (!first || first.length <= max) {
+			return lines;
+		}
+		if (rest.length >= 2) {
+			return null;
+		}
+		const trimmed = first.trim();
+		if (!trimmed.includes(" ")) {
+			return null;
+		}
+		const candidate = trimmed.slice(0, max + 1);
+		const splitAt = candidate.lastIndexOf(" ");
+		if (splitAt <= 0) {
+			return null;
+		}
+		const line1 = trimmed.slice(0, splitAt).trim();
+		const line2 = trimmed.slice(splitAt + 1).trim();
+		if (!line1 || !line2) {
+			return null;
+		}
+		if (line1.length > max || line2.length > max) {
+			return null;
+		}
+		return [line1, line2, ...rest];
 	}
 }

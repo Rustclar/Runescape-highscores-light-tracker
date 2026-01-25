@@ -5,6 +5,8 @@
     gimPlayerName: "",
     mode: "hiscore",
     refreshSeconds: 300,
+    refreshPreset: "5",
+    showRank: false,
     showXp: false,
     titleBold: true,
     titleColor: "#FFFFFF",
@@ -53,6 +55,7 @@
   const refreshCustomInput = document.querySelector("#refreshCustom");
   const refreshNote = document.querySelector("#refreshNote");
   const showXpInput = document.querySelector("#showXp");
+  const showRankInput = document.querySelector("#showRank");
   const titleBoldInput = document.querySelector("#titleBold");
   const titleColorSelect = document.querySelector("#titleColor");
   const titleSizeSelect = document.querySelector("#titleSize");
@@ -76,11 +79,16 @@
       useGimPlayers: Boolean(merged.useGimPlayers),
       gimPlayerName:
         typeof merged.gimPlayerName === "string" ? merged.gimPlayerName : "",
+      refreshPreset:
+        typeof merged.refreshPreset === "string"
+          ? merged.refreshPreset
+          : DEFAULT_SETTINGS.refreshPreset,
       refreshSeconds,
       mode,
       titleBold,
       titleColor,
-      titleSize
+      titleSize,
+      showRank: Boolean(merged.showRank)
     };
   };
 
@@ -173,6 +181,7 @@
       useGimPlayers: Boolean(useGimPlayersInput?.checked),
       gimPlayerName: gimPlayerSelect?.value ?? "",
       mode: modeSelect?.value ?? DEFAULT_SETTINGS.mode,
+      refreshPreset: refreshPresetSelect?.value ?? DEFAULT_SETTINGS.refreshPreset,
       refreshSeconds: (() => {
         if (refreshPresetSelect?.value === "custom") {
           const customValue = Number.parseInt(refreshCustomInput?.value ?? "", 10);
@@ -189,6 +198,7 @@
         return DEFAULT_SETTINGS.refreshSeconds;
       })(),
       showXp: Boolean(showXpInput?.checked),
+      showRank: Boolean(showRankInput?.checked),
       titleBold: Boolean(titleBoldInput?.checked),
       titleColor: titleColorSelect?.value ?? DEFAULT_SETTINGS.titleColor,
       titleSize: Number.parseInt(titleSizeSelect?.value ?? "", 10)
@@ -205,20 +215,22 @@
     if (refreshPresetSelect) {
       const minutes = Math.max(1, Math.round(settings.refreshSeconds / 60));
       const presetValues = ["1", "5", "10", "30", "60", "360", "720", "1440"];
-      refreshPresetSelect.value = presetValues.includes(String(minutes))
-        ? String(minutes)
-        : "custom";
+      const preset =
+        settings.refreshPreset ??
+        (presetValues.includes(String(minutes)) ? String(minutes) : "custom");
+      refreshPresetSelect.value = preset;
       if (refreshPresetSelect.value === "custom") {
         lastCustomMinutes = minutes;
       }
     }
     if (refreshCustomInput) {
-      refreshCustomInput.value = String(lastCustomMinutes);
+      refreshCustomInput.value = String(lastCustomMinutes || 1);
       const showCustom = refreshPresetSelect?.value === "custom";
       refreshCustomInput.style.display = showCustom ? "block" : "none";
       if (refreshNote) refreshNote.style.display = showCustom ? "block" : "none";
     }
     if (showXpInput) showXpInput.checked = settings.showXp;
+    if (showRankInput) showRankInput.checked = settings.showRank;
     if (titleBoldInput) titleBoldInput.checked = settings.titleBold;
     if (titleColorSelect) titleColorSelect.value = settings.titleColor;
     if (titleSizeSelect) titleSizeSelect.value = String(settings.titleSize);
@@ -338,12 +350,20 @@
   window.connectElgatoStreamDeckSocket = connect;
 
   playerInput?.addEventListener("input", handleFormChangeDebounced);
+  const handleGimSelectRefresh = () => {
+    if (useGimPlayersInput?.checked) {
+      requestGimMembers();
+    }
+  };
+
   gimPlayerSelect?.addEventListener("change", () => {
     handleFormChange();
     const settings = readSettingsFromForm();
     requestSave(settings);
     requestTestPull();
   });
+  gimPlayerSelect?.addEventListener("focus", handleGimSelectRefresh);
+  gimPlayerSelect?.addEventListener("mousedown", handleGimSelectRefresh);
   useGimPlayersInput?.addEventListener("change", () => {
     handleFormChange();
     if (useGimPlayersInput?.checked) {
@@ -355,7 +375,7 @@
     if (refreshCustomInput && refreshPresetSelect?.value === "custom") {
       refreshCustomInput.style.display = "block";
       if (refreshNote) refreshNote.style.display = "block";
-      refreshCustomInput.value = String(lastCustomMinutes);
+      refreshCustomInput.value = String(lastCustomMinutes || 1);
     } else if (refreshCustomInput) {
       refreshCustomInput.style.display = "none";
       if (refreshNote) refreshNote.style.display = "none";
@@ -367,6 +387,7 @@
   });
   refreshCustomInput?.addEventListener("input", handleFormChangeDebounced);
   showXpInput?.addEventListener("change", handleFormChange);
+  showRankInput?.addEventListener("change", handleFormChange);
   titleBoldInput?.addEventListener("change", handleFormChange);
   titleColorSelect?.addEventListener("change", handleFormChange);
   titleSizeSelect?.addEventListener("change", handleFormChange);
