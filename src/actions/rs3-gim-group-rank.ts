@@ -308,6 +308,7 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			return;
 		}
 
+		this.cache.clear();
 		const settings = await this.resolveSettings(state.settings);
 		if (!settings.groupName) {
 			await this.renderKey(
