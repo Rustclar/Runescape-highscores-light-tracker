@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.1.1
+
+- GIM cache clears on each refresh to reduce memory growth.
+
 ## 2.4.1
 
 - Added optional total rank display for Level Tracker.
