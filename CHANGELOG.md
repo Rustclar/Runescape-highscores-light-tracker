@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.2
+
+- Added Wilderness Event Timer action with next/specific event modes.
+- Local-time display with countdown (minutes or hours).
+- Added update check + “Open latest release” in property inspectors.
+
 ## 2.4.1.1
 
 - GIM cache clears on each refresh to reduce memory growth.

@@ -1,6 +1,6 @@
 {
 	"Name": "RuneScape Hiscores Lite Tracker",
-	"Version": "2.4.1.1",
+	"Version": "2.4.2.0",
 	"Author": "rustclar",
 	"Actions": [
 		{
@@ -81,6 +81,22 @@
 					"Image": "imgs/actions/leveltracker/key",
 					"TitleAlignment": "middle",
 					"TitleColor": "#000000"
+				}
+			]
+		},
+		{
+			"Name": "Wilderness Event Timer",
+			"UUID": "com.rustin.rs3.leveltracker2.0.wildy.event",
+			"Icon": "imgs/actions/leveltracker/icon",
+			"Tooltip": "Shows the next Wilderness Flash Event time.",
+			"PropertyInspectorPath": "ui/rs3-wildy-event.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/leveltracker/key",
+					"TitleAlignment": "middle"
 				}
 			]
 		}

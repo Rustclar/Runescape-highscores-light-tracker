@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1"
     />
-    <title>RS3 GIM Group Rank</title>
+    <title>Wilderness Flash Event Timer</title>
     <style>
       :root {
         color-scheme: light;
@@ -54,6 +54,10 @@
       #refreshCustom {
         display: none;
       }
+      #refreshNote {
+        display: none;
+        margin: -6px 0 12px;
+      }
       .row {
         display: flex;
         align-items: center;
@@ -70,10 +74,6 @@
       .hint {
         font-size: 12px;
         color: #94a3b8;
-      }
-      #refreshNote {
-        display: none;
-        margin: -6px 0 12px;
       }
       .actions {
         display: grid;
@@ -104,32 +104,29 @@
   </head>
   <body>
     <div class="card">
-      <h1>RS3 Group Ironman Rank</h1>
-      <div class="main-settings">
-        <label for="groupName">Group name</label>
-        <input
-          id="groupName"
-          type="text"
-          placeholder="Group name"
-        />
-        <label for="teamSize">Team size</label>
-        <select id="teamSize">
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5</option>
-        </select>
-        <label for="mode">Mode</label>
-        <select id="mode">
-          <option value="regular">Regular</option>
-          <option value="competitive">Competitive</option>
-        </select>
-        <label for="game">Game</label>
-        <select id="game">
-          <option value="rs3">RS3</option>
-          <option value="osrs">Old School</option>
-        </select>
-      </div>
+      <h1>Wilderness Flash Event Timer</h1>
+      <label for="eventMode">Event selection</label>
+      <select id="eventMode">
+        <option value="next">Next event</option>
+        <option value="specific">Specific event</option>
+      </select>
+      <label for="eventName">Event</label>
+      <select id="eventName">
+        <option value="Infernal Star">Infernal Star</option>
+        <option value="Lost Souls">Lost Souls</option>
+        <option value="Ramokee Incursion">Ramokee Incursion</option>
+        <option value="Displaced Energy">Displaced Energy</option>
+        <option value="Evil Bloodwood Tree">Evil Bloodwood Tree</option>
+        <option value="Spider Swarm">Spider Swarm</option>
+        <option value="Unnatural Outcrop">Unnatural Outcrop</option>
+        <option value="Stryke the Wyrm">Stryke the Wyrm</option>
+        <option value="Demon Stragglers">Demon Stragglers</option>
+        <option value="Butterfly Swarm">Butterfly Swarm</option>
+        <option value="King Black Dragon Rampage">King Black Dragon Rampage</option>
+        <option value="Forgotten Soldiers">Forgotten Soldiers</option>
+        <option value="Surprising Seedlings">Surprising Seedlings</option>
+        <option value="Hellhound Pack">Hellhound Pack</option>
+      </select>
       <label for="refreshPreset">Refresh interval</label>
       <select id="refreshPreset">
         <option value="1">1 minute</option>
@@ -137,9 +134,6 @@
         <option value="10">10 minutes</option>
         <option value="30">30 minutes</option>
         <option value="60">1 hour</option>
-        <option value="360">6 hours</option>
-        <option value="720">12 hours</option>
-        <option value="1440">24 hours</option>
         <option value="custom">Custom</option>
       </select>
       <input
@@ -150,18 +144,6 @@
         placeholder="Custom minutes"
       />
       <div id="refreshNote" class="hint">Custom time is in minutes.</div>
-      <div class="row">
-        <input id="showRank" type="checkbox" />
-        <label for="showRank">Show Rank</label>
-      </div>
-      <div class="row">
-        <input id="showLevel" type="checkbox" />
-        <label for="showLevel">Show Total Level</label>
-      </div>
-      <div class="row">
-        <input id="showXp" type="checkbox" />
-        <label for="showXp">Show XP</label>
-      </div>
       <label for="titleColor">Text color</label>
       <select id="titleColor">
         <option value="#000000">Black</option>
@@ -193,15 +175,7 @@
       <div class="actions">
         <button id="saveSettings" class="test-button" type="button">Refresh</button>
       </div>
-      <label>Updates</label>
-      <div class="hint" id="updateStatus">Checking for updates…</div>
-      <div class="actions">
-        <button id="checkUpdate" type="button">Check for Updates</button>
-        <button id="openRelease" type="button" style="display: none">
-          Open Latest Release
-        </button>
-      </div>
     </div>
-    <script src="rs3-gim-rank.js"></script>
+    <script src="rs3-wildy-event.js"></script>
   </body>
 </html>

@@ -52,6 +52,9 @@
   const titleColorSelect = document.querySelector("#titleColor");
   const titleSizeSelect = document.querySelector("#titleSize");
   const saveButton = document.querySelector("#saveSettings");
+  const updateStatus = document.querySelector("#updateStatus");
+  const checkUpdateButton = document.querySelector("#checkUpdate");
+  const openReleaseButton = document.querySelector("#openRelease");
 
   const normalizeSettings = (settings = {}) => {
     const merged = { ...DEFAULT_SETTINGS, ...settings };
@@ -131,6 +134,35 @@
     );
   };
 
+  const requestUpdateCheck = () => {
+    const targets = [];
+    if (actionContext) targets.push(actionContext);
+    if (context && context !== actionContext) targets.push(context);
+    if (!targets.length) return;
+    targets.forEach((target) =>
+      send({
+        event: "sendToPlugin",
+        action: actionUUID,
+        context: target,
+        payload: { event: "checkUpdate" }
+      })
+    );
+  };
+
+  const requestOpenRelease = () => {
+    const targets = [];
+    if (actionContext) targets.push(actionContext);
+    if (context && context !== actionContext) targets.push(context);
+    if (!targets.length) return;
+    targets.forEach((target) =>
+      send({
+        event: "sendToPlugin",
+        action: actionUUID,
+        context: target,
+        payload: { event: "openRelease" }
+      })
+    );
+  };
   const requestSettings = () => {
     const targets = [];
     if (actionContext) targets.push(actionContext);
@@ -239,6 +271,21 @@
         applySettingsToForm(merged);
       }
     }
+    if (message.event === "sendToPropertyInspector") {
+      const payload = message.payload || {};
+      if (payload.event === "updateCheck") {
+        const current = payload.current ?? "unknown";
+        const latest = payload.latest ?? "unknown";
+        if (updateStatus) {
+          updateStatus.textContent = payload.updateAvailable
+            ? `Update available: ${latest} (current ${current})`
+            : `Up to date (${current})`;
+        }
+        if (openReleaseButton) {
+          openReleaseButton.style.display = payload.updateAvailable ? "block" : "none";
+        }
+      }
+    }
   };
 
   const connect = (inPort, inUUID, inRegisterEvent, _inInfo, inActionInfo) => {
@@ -275,6 +322,7 @@
     if (websocket.readyState === WebSocket.OPEN) {
       requestSettings();
       requestGlobalSettings();
+      requestUpdateCheck();
     }
   };
 
@@ -310,4 +358,6 @@
     handleFormChange();
     requestSave(settings);
   });
+  checkUpdateButton?.addEventListener("click", requestUpdateCheck);
+  openReleaseButton?.addEventListener("click", requestOpenRelease);
 })();
