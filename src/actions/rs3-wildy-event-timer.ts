@@ -47,6 +47,7 @@ const EVENT_ROTATION = [
 	"Surprising Seedlings",
 	"Hellhound Pack"
 ];
+const ROTATION_BASE_HOUR_UTC = 8;
 
 type ContextState = {
 	settings: ActionSettings;
@@ -233,7 +234,11 @@ export class Rs3WildyEventTimer extends SingletonAction<ActionSettings> {
 			0
 		);
 		const hoursSinceBase = Math.floor((timestampUtcMs - base) / 3600000);
-		return ((hoursSinceBase % EVENT_ROTATION.length) + EVENT_ROTATION.length) % EVENT_ROTATION.length;
+		const adjusted = hoursSinceBase - ROTATION_BASE_HOUR_UTC;
+		return (
+			((adjusted % EVENT_ROTATION.length) + EVENT_ROTATION.length) %
+			EVENT_ROTATION.length
+		);
 	}
 
 	private formatLocalTime(timestamp: number): string {

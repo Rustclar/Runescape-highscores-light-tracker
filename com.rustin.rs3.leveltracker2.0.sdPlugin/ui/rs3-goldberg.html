@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+    <title>Rune Goldberg (Vis Wax)</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      body {
+        margin: 0;
+        padding: 12px;
+        background: radial-gradient(circle at top, #1e293b, #0f172a 60%);
+      }
+      .card {
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.35);
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 12px;
+        letter-spacing: 0.4px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-bottom: 6px;
+        color: #94a3b8;
+      }
+      input,
+      select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(30, 41, 59, 0.85);
+        color: #e2e8f0;
+        margin-bottom: 12px;
+        font-size: 14px;
+      }
+      #refreshCustom {
+        display: none;
+      }
+      #refreshNote {
+        display: none;
+        margin: -6px 0 12px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .row label {
+        margin: 0;
+        font-size: 12px;
+        text-transform: none;
+        letter-spacing: 0;
+        color: #e2e8f0;
+      }
+      .hint {
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 6px;
+      }
+      button {
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        color: #0f172a;
+        background: linear-gradient(135deg, #f8fafc, #cbd5f5);
+      }
+      .test-button {
+        color: #f8fafc;
+        background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
+        background-image: url("sword.png");
+        background-repeat: no-repeat;
+        background-position: 10px center;
+        background-size: 22px;
+        padding-left: 38px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Rune Goldberg (Vis Wax)</h1>
+      <label for="refreshPreset">Refresh interval</label>
+      <select id="refreshPreset">
+        <option value="5">5 minutes</option>
+        <option value="10">10 minutes</option>
+        <option value="30">30 minutes</option>
+        <option value="60">1 hour</option>
+        <option value="custom">Custom</option>
+      </select>
+      <input
+        id="refreshCustom"
+        type="number"
+        min="1"
+        step="1"
+        placeholder="Custom minutes"
+      />
+      <div id="refreshNote" class="hint">Custom time is in minutes.</div>
+      <div class="hint">
+        Data is crowdsourced and may be inaccurate right after reset.
+      </div>
+      <label for="titleColor">Text color</label>
+      <select id="titleColor">
+        <option value="#000000">Black</option>
+        <option value="#FFFFFF">White</option>
+        <option value="#DC2626">Red</option>
+        <option value="#16A34A">Green</option>
+        <option value="#2563EB">Blue</option>
+        <option value="#F59E0B">Yellow</option>
+        <option value="#F97316">Orange</option>
+        <option value="#7C3AED">Purple</option>
+        <option value="#06B6D4">Cyan</option>
+        <option value="#DB2777">Magenta</option>
+        <option value="#6B7280">Gray</option>
+      </select>
+      <label for="titleSize">Text size</label>
+      <select id="titleSize">
+        <option value="16">Small</option>
+        <option value="18">Small+</option>
+        <option value="20">Medium</option>
+        <option value="22">Medium+</option>
+        <option value="24">Large</option>
+        <option value="26">Large+</option>
+        <option value="28">Max</option>
+      </select>
+      <div class="row">
+        <input id="titleBold" type="checkbox" />
+        <label for="titleBold">Bold text</label>
+      </div>
+      <div class="actions">
+        <button id="saveSettings" class="test-button" type="button">Refresh</button>
+      </div>
+    </div>
+    <script src="rs3-goldberg.js"></script>
+  </body>
+</html>

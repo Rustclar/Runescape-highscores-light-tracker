@@ -12,6 +12,7 @@ import streamDeck from "@elgato/streamdeck";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isUpdateAvailable } from "../update-state";
 
 type GroupMode = "regular" | "competitive";
 type TeamSize = 2 | 3 | 4 | 5;
@@ -345,7 +346,10 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 			}
 			const maxChars = this.getMaxChars(settings.titleSize);
 			const titleName = this.neighborOffset === 0 ? settings.groupName : result.name;
-			const lines: string[] = [titleName];
+			const shouldShowUpdate = this.isMain && isUpdateAvailable();
+			const lines: string[] = [
+				shouldShowUpdate ? `* ${titleName} UPDATE AVAILABLE` : titleName
+			];
 			if (settings.showRank) {
 				lines.push(this.truncateLine(`RANK ${result.rank}`, maxChars));
 			}

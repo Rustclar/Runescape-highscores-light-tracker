@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.3
+
+- Rune Goldberg (Vis Wax) action fixed and simplified (4-line display, no “Rune” text).
+- Removed Goldberg display mode toggle (always top 3).
+- Update checks now run at Stream Deck launch and every 6 hours.
+- Main GIM group button shows “UPDATE AVAILABLE” banner when a new release is detected.
+
 ## 2.4.2
 
 - Added Wilderness Event Timer action with next/specific event modes.
