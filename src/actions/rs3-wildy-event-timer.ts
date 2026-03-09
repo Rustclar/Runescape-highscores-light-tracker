@@ -287,7 +287,7 @@ export class Rs3WildyEventTimer extends SingletonAction<ActionSettings> {
 			state.action.setTitle(rendered.join("\n"), { target: 0 }).catch((error) => {
 				streamDeck.logger.error(`Wildy marquee render failed: ${String(error)}`);
 			});
-		}, 500);
+		}, 1000);
 	}
 
 	private truncateLine(value: string, max = 14): string {

@@ -90,6 +90,7 @@ const ALLOWED_SIZES = [16, 18, 20, 22, 24, 26, 28];
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RELEASES_URL = "https://github.com/Rustclar/Runescape-highscores-light-tracker/releases/latest";
 const RELEASES_API = "https://api.github.com/repos/Rustclar/Runescape-highscores-light-tracker/releases/latest";
+const ENABLE_FILE_LOGS = process.env.RS3_SD_FILE_LOGS === "1";
 
 type ContextState = {
 	settings: ActionSettings;
@@ -449,7 +450,7 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 				(error) => {
 				console.error("Marquee render failed", error);
 			});
-		}, 500);
+		}, 1000);
 	}
 
 	private async fetchHiscore(
@@ -511,10 +512,12 @@ export class Rs3LevelTracker extends SingletonAction<ActionSettings> {
 		if (!this.logPath) {
 			return;
 		}
-		try {
-			fs.appendFileSync(this.logPath, `${line}\n`, "utf8");
-		} catch (error) {
-			streamDeck.logger.warn(`log write failed: ${String(error)}`);
+		if (ENABLE_FILE_LOGS) {
+			try {
+				fs.appendFileSync(this.logPath, `${line}\n`, "utf8");
+			} catch (error) {
+				streamDeck.logger.warn(`log write failed: ${String(error)}`);
+			}
 		}
 	}
 

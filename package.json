@@ -5,7 +5,7 @@
         "link": "node scripts/streamdeck-link.js",
         "restart": "streamdeck restart com.rustin.rs3.leveltracker2.0",
         "dev": "npm run build && npm run validate && npm run link && npm run restart",
-        "pack": "npm run build && npm run validate && streamdeck pack \"com.rustin.rs3.leveltracker2.0.sdPlugin\" --output dist",
+        "pack": "npm run build && npm run validate && streamdeck pack \"com.rustin.rs3.leveltracker2.0.sdPlugin\" --output dist --force",
         "clean": "node scripts/clean.js"
     },
     "type": "module",

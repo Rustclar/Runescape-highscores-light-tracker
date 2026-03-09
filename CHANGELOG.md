@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.4.4
+
+- Reduced plugin memory pressure by lowering runtime log level from TRACE to INFO.
+- Disabled synchronous plugin file logging by default.
+- Added optional file logging toggle via `RS3_SD_FILE_LOGS=1`.
+- Reduced marquee redraw cadence from 500ms to 1000ms across actions.
+- Added `Player Skill` action registration + manifest/UI/source files to keep repo/runtime in sync.
+- Updated pack script to overwrite existing packaged output (`--force`).
+- Updated lockfile to `@elgato/cli` 1.7.1.
+
 ## 2.4.3
 
 - Rune Goldberg (Vis Wax) action fixed and simplified (4-line display, no “Rune” text).

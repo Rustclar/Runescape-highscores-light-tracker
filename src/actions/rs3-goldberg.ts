@@ -34,6 +34,7 @@ const DEFAULT_SETTINGS: ActionSettings = {
 };
 
 const GOLDBERG_URL = "https://www.warbandtracker.com/goldberg/index.php";
+const ENABLE_FILE_LOGS = process.env.RS3_SD_FILE_LOGS === "1";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 type ContextState = {
@@ -379,10 +380,12 @@ export class Rs3Goldberg extends SingletonAction<ActionSettings> {
 		if (!this.logPath) {
 			return;
 		}
-		try {
-			fs.appendFileSync(this.logPath, `${line}\n`, "utf8");
-		} catch (error) {
-			streamDeck.logger.warn(`log write failed: ${String(error)}`);
+		if (ENABLE_FILE_LOGS) {
+			try {
+				fs.appendFileSync(this.logPath, `${line}\n`, "utf8");
+			} catch (error) {
+				streamDeck.logger.warn(`log write failed: ${String(error)}`);
+			}
 		}
 	}
 
@@ -425,7 +428,7 @@ export class Rs3Goldberg extends SingletonAction<ActionSettings> {
 			state.action.setTitle(rendered.join("\n"), { target: 0 }).catch((error) => {
 				streamDeck.logger.error(`Goldberg marquee render failed: ${String(error)}`);
 			});
-		}, 500);
+		}, 1000);
 	}
 
 	private truncateLine(value: string, max = 14): string {

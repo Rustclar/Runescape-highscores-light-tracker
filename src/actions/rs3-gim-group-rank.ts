@@ -723,7 +723,7 @@ class Rs3GimGroupRankBase extends SingletonAction<GroupSettings> {
 				(error) => {
 				streamDeck.logger.error(`GIM marquee render failed: ${String(error)}`);
 			});
-		}, 500);
+		}, 1000);
 	}
 
 	private buildSvgImage(

@@ -1,6 +1,6 @@
 {
 	"Name": "RuneScape Hiscores Lite Tracker",
-	"Version": "2.4.3.0",
+	"Version": "2.4.4.0",
 	"Author": "rustclar",
 	"Actions": [
 		{
@@ -81,6 +81,22 @@
 					"Image": "imgs/actions/leveltracker/key",
 					"TitleAlignment": "middle",
 					"TitleColor": "#000000"
+				}
+			]
+		},
+		{
+			"Name": "Player Skill",
+			"UUID": "com.rustin.rs3.leveltracker2.0.skilltracker",
+			"Icon": "imgs/actions/leveltracker/icon",
+			"Tooltip": "Shows a player skill level and XP.",
+			"PropertyInspectorPath": "ui/rs3-skill-tracker.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/leveltracker/key",
+					"TitleAlignment": "middle"
 				}
 			]
 		},
