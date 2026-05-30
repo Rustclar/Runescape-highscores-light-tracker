@@ -1,6 +1,6 @@
 {
 	"Name": "RuneScape Hiscores Lite Tracker",
-	"Version": "2.4.4.0",
+	"Version": "2.4.5.0",
 	"Author": "rustclar",
 	"Actions": [
 		{
@@ -101,27 +101,11 @@
 			]
 		},
 		{
-			"Name": "Wilderness Event Timer",
-			"UUID": "com.rustin.rs3.leveltracker2.0.wildy.event",
+			"Name": "XP Since Last Seen",
+			"UUID": "com.rustin.rs3.leveltracker2.0.dailyxpgain",
 			"Icon": "imgs/actions/leveltracker/icon",
-			"Tooltip": "Shows the next Wilderness Flash Event time.",
-			"PropertyInspectorPath": "ui/rs3-wildy-event.html",
-			"Controllers": [
-				"Keypad"
-			],
-			"States": [
-				{
-					"Image": "imgs/actions/leveltracker/key",
-					"TitleAlignment": "middle"
-				}
-			]
-		},
-		{
-			"Name": "Rune Goldberg (Vis Wax)",
-			"UUID": "com.rustin.rs3.leveltracker2.0.goldberg",
-			"Icon": "imgs/actions/leveltracker/icon",
-			"Tooltip": "Shows today's Rune Goldberg runes (crowdsourced).",
-			"PropertyInspectorPath": "ui/rs3-goldberg.html",
+			"Tooltip": "Shows total XP gained since the previous day this button saw the player.",
+			"PropertyInspectorPath": "ui/rs3-daily-xp-gain.html",
 			"Controllers": [
 				"Keypad"
 			],

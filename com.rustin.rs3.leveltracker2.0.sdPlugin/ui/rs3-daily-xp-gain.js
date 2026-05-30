@@ -1,14 +1,24 @@
 (() => {
   const DEFAULT_SETTINGS = {
-    eventMode: "next",
-    eventName: "Infernal Star",
-    refreshSeconds: 60,
-    refreshPreset: "1",
+    playerName: "",
+    mode: "hiscore",
+    refreshSeconds: 300,
+    refreshPreset: "5",
     titleBold: true,
     titleColor: "#FFFFFF",
     titleSize: 24
   };
-
+  const ALLOWED_MODES = [
+    "hiscore",
+    "hiscore_ironman",
+    "hiscore_hardcore_ironman",
+    "hiscore_oldschool",
+    "hiscore_oldschool_ironman",
+    "hiscore_oldschool_hardcore_ironman",
+    "hiscore_oldschool_ultimate",
+    "hiscore_oldschool_deadman",
+    "hiscore_oldschool_seasonal"
+  ];
   const ALLOWED_COLORS = [
     "#000000",
     "#FFFFFF",
@@ -27,12 +37,12 @@
   let websocket = null;
   let context = "";
   let actionContext = "";
-  let actionUUID = "com.rustin.rs3.leveltracker2.0.wildy.event";
-  let lastCustomMinutes = Math.max(1, Math.round(DEFAULT_SETTINGS.refreshSeconds / 60));
+  let actionUUID = "com.rustin.rs3.leveltracker2.0.dailyxpgain";
   let inputTimer = null;
+  let lastCustomMinutes = Math.max(1, Math.round(DEFAULT_SETTINGS.refreshSeconds / 60));
 
-  const eventModeSelect = document.querySelector("#eventMode");
-  const eventNameSelect = document.querySelector("#eventName");
+  const playerInput = document.querySelector("#playerName");
+  const modeSelect = document.querySelector("#mode");
   const refreshPresetSelect = document.querySelector("#refreshPreset");
   const refreshCustomInput = document.querySelector("#refreshCustom");
   const refreshNote = document.querySelector("#refreshNote");
@@ -40,12 +50,14 @@
   const titleColorSelect = document.querySelector("#titleColor");
   const titleSizeSelect = document.querySelector("#titleSize");
   const saveButton = document.querySelector("#saveSettings");
+  const resetButton = document.querySelector("#resetToday");
 
   const normalizeSettings = (settings = {}) => {
     const merged = { ...DEFAULT_SETTINGS, ...settings };
     const refreshSeconds = Number.isFinite(merged.refreshSeconds)
       ? Math.max(30, Math.floor(merged.refreshSeconds))
       : DEFAULT_SETTINGS.refreshSeconds;
+    const mode = ALLOWED_MODES.includes(merged.mode) ? merged.mode : DEFAULT_SETTINGS.mode;
     const titleColor = ALLOWED_COLORS.includes(merged.titleColor)
       ? merged.titleColor
       : DEFAULT_SETTINGS.titleColor;
@@ -53,21 +65,15 @@
     const titleSize = ALLOWED_SIZES.includes(String(merged.titleSize))
       ? Number.parseInt(String(merged.titleSize), 10)
       : DEFAULT_SETTINGS.titleSize;
-    const eventMode = merged.eventMode === "specific" ? "specific" : "next";
-    const eventName =
-      typeof merged.eventName === "string"
-        ? merged.eventName
-        : DEFAULT_SETTINGS.eventName;
-    const refreshPreset =
-      typeof merged.refreshPreset === "string"
-        ? merged.refreshPreset
-        : DEFAULT_SETTINGS.refreshPreset;
     return {
       ...merged,
+      playerName: typeof merged.playerName === "string" ? merged.playerName : "",
+      refreshPreset:
+        typeof merged.refreshPreset === "string"
+          ? merged.refreshPreset
+          : DEFAULT_SETTINGS.refreshPreset,
       refreshSeconds,
-      refreshPreset,
-      eventMode,
-      eventName,
+      mode,
       titleBold,
       titleColor,
       titleSize
@@ -81,50 +87,38 @@
     websocket.send(JSON.stringify(payload));
   };
 
-  const setSettings = (settings) => {
+  const getTargets = () => {
     const targets = [];
     if (actionContext) targets.push(actionContext);
     if (context && context !== actionContext) targets.push(context);
-    if (!targets.length) return;
-    targets.forEach((target) =>
+    return targets;
+  };
+
+  const setSettings = (settings) => {
+    getTargets().forEach((target) =>
       send({ event: "setSettings", context: target, payload: settings })
     );
   };
 
-  const requestSave = (settings) => {
-    const targets = [];
-    if (actionContext) targets.push(actionContext);
-    if (context && context !== actionContext) targets.push(context);
-    if (!targets.length) return;
-    targets.forEach((target) =>
-      send({
-        event: "sendToPlugin",
-        action: actionUUID,
-        context: target,
-        payload: { event: "saveSettings", settings }
-      })
-    );
+  const requestSettings = () => {
+    getTargets().forEach((target) => send({ event: "getSettings", context: target }));
   };
 
-  const requestRefresh = () => {
-    const targets = [];
-    if (actionContext) targets.push(actionContext);
-    if (context && context !== actionContext) targets.push(context);
-    if (!targets.length) return;
-    targets.forEach((target) =>
+  const requestPluginEvent = (event, settings) => {
+    getTargets().forEach((target) =>
       send({
         event: "sendToPlugin",
         action: actionUUID,
         context: target,
-        payload: { event: "refresh" }
+        payload: { event, settings }
       })
     );
   };
 
   const readSettingsFromForm = () =>
     normalizeSettings({
-      eventMode: eventModeSelect?.value ?? DEFAULT_SETTINGS.eventMode,
-      eventName: eventNameSelect?.value ?? DEFAULT_SETTINGS.eventName,
+      playerName: playerInput?.value ?? "",
+      mode: modeSelect?.value ?? DEFAULT_SETTINGS.mode,
       refreshPreset: refreshPresetSelect?.value ?? DEFAULT_SETTINGS.refreshPreset,
       refreshSeconds: (() => {
         if (refreshPresetSelect?.value === "custom") {
@@ -147,11 +141,11 @@
     });
 
   const applySettingsToForm = (settings) => {
-    if (eventModeSelect) eventModeSelect.value = settings.eventMode;
-    if (eventNameSelect) eventNameSelect.value = settings.eventName;
+    if (playerInput) playerInput.value = settings.playerName;
+    if (modeSelect) modeSelect.value = settings.mode;
     if (refreshPresetSelect) {
       const minutes = Math.max(1, Math.round(settings.refreshSeconds / 60));
-      const presetValues = ["1", "5", "10", "30", "60"];
+      const presetValues = ["1", "5", "10", "30", "60", "360", "720", "1440"];
       const preset =
         settings.refreshPreset ??
         (presetValues.includes(String(minutes)) ? String(minutes) : "custom");
@@ -169,10 +163,6 @@
     if (titleBoldInput) titleBoldInput.checked = settings.titleBold;
     if (titleColorSelect) titleColorSelect.value = settings.titleColor;
     if (titleSizeSelect) titleSizeSelect.value = String(settings.titleSize);
-
-    if (eventNameSelect) {
-      eventNameSelect.disabled = settings.eventMode !== "specific";
-    }
   };
 
   const handleFormChange = () => {
@@ -197,8 +187,7 @@
       if (message.context && message.context !== context) {
         actionContext = message.context;
       }
-      const settings = normalizeSettings(message.payload?.settings);
-      applySettingsToForm(settings);
+      applySettingsToForm(normalizeSettings(message.payload?.settings));
     }
   };
 
@@ -207,6 +196,7 @@
     websocket = new WebSocket(`ws://127.0.0.1:${inPort}`);
     websocket.onopen = () => {
       send({ event: inRegisterEvent, uuid: inUUID });
+      requestSettings();
     };
     websocket.onmessage = handleMessage;
 
@@ -220,15 +210,14 @@
       actionInfo?.payload?.settings?.context ||
       inUUID ||
       "";
-    const settings = normalizeSettings(actionInfo?.payload?.settings);
-    applySettingsToForm(settings);
+    applySettingsToForm(normalizeSettings(actionInfo?.payload?.settings));
   };
 
   window.connectElgatoStreamDeck = connect;
   window.connectElgatoStreamDeckSocket = connect;
 
-  eventModeSelect?.addEventListener("change", handleFormChange);
-  eventNameSelect?.addEventListener("change", handleFormChange);
+  playerInput?.addEventListener("input", handleFormChangeDebounced);
+  modeSelect?.addEventListener("change", handleFormChange);
   refreshPresetSelect?.addEventListener("change", () => {
     if (refreshCustomInput && refreshPresetSelect?.value === "custom") {
       refreshCustomInput.style.display = "block";
@@ -249,8 +238,10 @@
   titleSizeSelect?.addEventListener("change", handleFormChange);
   saveButton?.addEventListener("click", () => {
     handleFormChange();
-    const settings = readSettingsFromForm();
-    requestSave(settings);
-    requestRefresh();
+    requestPluginEvent("saveSettings", readSettingsFromForm());
+  });
+  resetButton?.addEventListener("click", () => {
+    handleFormChange();
+    requestPluginEvent("markSeen", readSettingsFromForm());
   });
 })();

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.5
+
+- Removed Wilderness Event Timer and Rune Goldberg actions.
+- Deleted orphaned Wilderness Event and Rune Goldberg source/UI files.
+- Added XP Since Last Seen action for total XP gained since the previous day the button saw the player.
+- Added Mark Seen Now control for manually resetting the comparison snapshot.
+
 ## 2.4.4
 
 - Reduced plugin memory pressure by lowering runtime log level from TRACE to INFO.

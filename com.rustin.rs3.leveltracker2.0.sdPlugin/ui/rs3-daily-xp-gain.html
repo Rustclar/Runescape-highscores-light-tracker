@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1"
     />
-    <title>Wilderness Flash Event Timer</title>
+    <title>XP Since Last Seen</title>
     <style>
       :root {
         color-scheme: light;
@@ -91,7 +91,7 @@
         color: #0f172a;
         background: linear-gradient(135deg, #f8fafc, #cbd5f5);
       }
-      .test-button {
+      .refresh-button {
         color: #f8fafc;
         background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
         background-image: url("sword.png");
@@ -104,28 +104,28 @@
   </head>
   <body>
     <div class="card">
-      <h1>Wilderness Flash Event Timer</h1>
-      <label for="eventMode">Event selection</label>
-      <select id="eventMode">
-        <option value="next">Next event</option>
-        <option value="specific">Specific event</option>
-      </select>
-      <label for="eventName">Event</label>
-      <select id="eventName">
-        <option value="Infernal Star">Infernal Star</option>
-        <option value="Lost Souls">Lost Souls</option>
-        <option value="Ramokee Incursion">Ramokee Incursion</option>
-        <option value="Displaced Energy">Displaced Energy</option>
-        <option value="Evil Bloodwood Tree">Evil Bloodwood Tree</option>
-        <option value="Spider Swarm">Spider Swarm</option>
-        <option value="Unnatural Outcrop">Unnatural Outcrop</option>
-        <option value="Stryke the Wyrm">Stryke the Wyrm</option>
-        <option value="Demon Stragglers">Demon Stragglers</option>
-        <option value="Butterfly Swarm">Butterfly Swarm</option>
-        <option value="King Black Dragon Rampage">King Black Dragon Rampage</option>
-        <option value="Forgotten Soldiers">Forgotten Soldiers</option>
-        <option value="Surprising Seedlings">Surprising Seedlings</option>
-        <option value="Hellhound Pack">Hellhound Pack</option>
+      <h1>XP Since Last Seen</h1>
+      <label for="playerName">Player name</label>
+      <input
+        id="playerName"
+        type="text"
+        placeholder="RuneScape name"
+      />
+      <label for="mode">Mode</label>
+      <select id="mode">
+        <option value="hiscore">RS3 - Main</option>
+        <option value="hiscore_ironman">RS3 - Ironman</option>
+        <option value="hiscore_hardcore_ironman">RS3 - Hardcore Ironman</option>
+        <option value="hiscore_oldschool">OSRS - Main</option>
+        <option value="hiscore_oldschool_ironman">OSRS - Ironman</option>
+        <option value="hiscore_oldschool_hardcore_ironman">
+          OSRS - Hardcore Ironman
+        </option>
+        <option value="hiscore_oldschool_ultimate">
+          OSRS - Ultimate Ironman
+        </option>
+        <option value="hiscore_oldschool_deadman">OSRS - Deadman</option>
+        <option value="hiscore_oldschool_seasonal">OSRS - Seasonal</option>
       </select>
       <label for="refreshPreset">Refresh interval</label>
       <select id="refreshPreset">
@@ -134,6 +134,9 @@
         <option value="10">10 minutes</option>
         <option value="30">30 minutes</option>
         <option value="60">1 hour</option>
+        <option value="360">6 hours</option>
+        <option value="720">12 hours</option>
+        <option value="1440">24 hours</option>
         <option value="custom">Custom</option>
       </select>
       <input
@@ -173,9 +176,10 @@
         <label for="titleBold">Bold text</label>
       </div>
       <div class="actions">
-        <button id="saveSettings" class="test-button" type="button">Refresh</button>
+        <button id="saveSettings" class="refresh-button" type="button">Refresh</button>
+        <button id="resetToday" type="button">Mark Seen Now</button>
       </div>
     </div>
-    <script src="rs3-wildy-event.js"></script>
+    <script src="rs3-daily-xp-gain.js"></script>
   </body>
 </html>
